@@ -90,4 +90,25 @@ public partial class ALSource3D : Node3D
         get => _playbackNoRepeat;
         set => _playbackNoRepeat = value;
     }
+
+    /// <summary>Script-only alias for <see cref="Streams"/>, matching AudioStreamPlayer3D's single "stream" property. Lets a script written against AudioStreamPlayer3D keep working unmodified after converting to this node. Reads back the first entry of <see cref="Streams"/>; writes replace <see cref="Streams"/> with a one-entry array.</summary>
+    public AudioStream Stream
+    {
+        get => _streams.Length == 0 ? null : _streams[0];
+        set => Streams = [value];
+    }
+
+    /// <summary>Script-only alias for <see cref="Pitch"/>, matching AudioStreamPlayer3D's "pitch_scale" property.</summary>
+    public float PitchScale
+    {
+        get => Pitch;
+        set => Pitch = value;
+    }
+
+    /// <summary>Script-only alias for <see cref="Volume"/>, matching AudioStreamPlayer3D's logarithmic "volume_db" property. Converts through LinearToDb/DbToLinear since <see cref="Volume"/> is linear.</summary>
+    public float VolumeDb
+    {
+        get => Mathf.LinearToDb(Volume);
+        set => Volume = Mathf.DbToLinear(value);
+    }
 }
