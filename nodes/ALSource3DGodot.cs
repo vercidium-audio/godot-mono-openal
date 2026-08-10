@@ -1,5 +1,3 @@
-using System.Linq;
-
 namespace godot_openal;
 
 public partial class ALSource3D : Node3D
@@ -8,46 +6,14 @@ public partial class ALSource3D : Node3D
     [Signal]
     public delegate void FinishedEventHandler();
 
-    static List<string> SupportedFileExtensions = ["ogg", "wav", "mp3", "flac"];
-
     public override string[] _GetConfigurationWarnings()
     {
         var warnings = new List<string>();
 
-        foreach (var soundName in Streams)
+        for (int i = 0; i < Streams.Length; i++)
         {
-            if (soundName.Any(char.IsDigit))
-            {
-                warnings.Add($"Sound file should not contain digits: {soundName}");
-            }
-            else if (soundName.Contains('.'))
-            {
-                string soundPath = $"{Constants.AudioPath}/{soundName}";
-
-                if (!FileAccess.FileExists(soundPath))
-                {
-                    warnings.Add($"Sound file not found: {soundPath}");
-                }
-            }
-            else
-            {
-                // Guess the file type
-                var anyExist = false;
-
-                foreach (var extension in SupportedFileExtensions)
-                {
-                    string soundPath = $"{Constants.AudioPath}/{soundName}.{extension}";
-
-                    if (FileAccess.FileExists(soundPath))
-                    {
-                        anyExist = true;
-                        break;
-                    }
-                }
-
-                if (!anyExist)
-                    warnings.Add($"Sound file not found: {soundName}. File types attempted: {string.Join(", ", SupportedFileExtensions)}");
-            }
+            if (Streams[i] == null)
+                warnings.Add($"Streams[{i}] is not set");
         }
 
         return warnings.ToArray();

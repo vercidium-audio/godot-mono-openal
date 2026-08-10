@@ -9,11 +9,6 @@ global using Godot;
 
 namespace godot_openal;
 
-public static class Constants
-{
-    public static string AudioPath = (string)ProjectSettings.GetSetting("audio/openal_sound_folder.custom", "res://audio");
-}
-
 public static class Helper
 {
     public static Vector3 PitchYawToVector3(float pitch, float yaw)

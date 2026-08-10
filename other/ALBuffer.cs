@@ -4,38 +4,102 @@ namespace godot_openal;
 
 public class ALBuffer
 {
-    string fileName;
+    // Set to true while a device switch is tearing everything down, so in-flight background
+    // decode tasks bail out early instead of racing the teardown/rebuild.
+    public static bool CancelLoadingSounds;
+
+    // Pull frames from playback in fixed-size chunks rather than one huge MixAudio() call -
+    // keeps a single temporary allocation bounded regardless of how long the source stream is.
+    const int MixChunkFrames = 8192;
+
+    AudioStream stream;
     Task loadingTask;
 
-    SoundData data;
-    uint handle;
-    public int Duration => data.duration;
-    public int SampleRate => data.sampleRate;
-    public int Format => data.format;
+    short[] pcmData;
+    int sampleRate;
+    public int Duration { get; private set; }
 
-    public ALBuffer(ALContext context, string fileName)
+    public ALBuffer(ALContext context, AudioStream stream)
     {
-        this.fileName = fileName;
+        this.stream = stream;
         loadingTask = Task.Run(() => Load(context));
+    }
+
+    static short FloatToPCM16(float sample)
+    {
+        var clamped = Math.Clamp(sample, -1.0f, 1.0f);
+        return (short)(clamped * short.MaxValue);
     }
 
     void Load(ALContext context)
     {
-        if (SoundLoader.CancelLoadingSounds)
+        if (CancelLoadingSounds)
             return;
 
-        data = SoundLoader.Load(fileName);
+        // Decodes via Godot's own AudioStream/import pipeline (AudioStreamOggVorbis/WAV/MP3/...)
+        // instead of a bundled decoder, so any format Godot can import is supported for free.
+        var playback = stream.InstantiatePlayback();
 
-        // Bail if we're changing audio devices
-        if (SoundLoader.CancelLoadingSounds)
-            return;
-
-        // Bail if it failed to load (corrupt or unsupported sound file)
-        if (data == null || data.byteCount == 0)
+        if (playback == null)
         {
-            LogWarning($"Cannot buffer data for {fileName} as no data was loaded from disk");
+            LogWarning($"Cannot buffer data for {stream.ResourcePath} as its AudioStream failed to instantiate a playback (unsupported/corrupt file?)");
             return;
         }
+
+        var mixRate = AudioServer.GetMixRate();
+        var lengthSeconds = stream.GetLength();
+
+        // Some streams (e.g. procedurally-generated or malformed ones) report a zero/negative
+        // length. Fall back to pulling until MixAudio stops returning frames, bounded by a
+        // generous frame count so a broken stream can't loop forever.
+        long expectedFrames = lengthSeconds > 0.0
+            ? (long)(lengthSeconds * mixRate) + MixChunkFrames
+            : (long)mixRate * 60 * 10; // 10 minute safety cap
+
+        playback.Start();
+
+        var pending = new List<short>((int)Math.Min(expectedFrames, (long)mixRate * 60) * 2);
+
+        long framesPulled = 0;
+
+        while (framesPulled < expectedFrames)
+        {
+            if (CancelLoadingSounds)
+                return;
+
+            Vector2[] chunk = playback.MixAudio(1.0f, MixChunkFrames);
+
+            if (chunk == null || chunk.Length == 0)
+                break;
+
+            foreach (var frame in chunk)
+            {
+                pending.Add(FloatToPCM16(frame.X));
+                pending.Add(FloatToPCM16(frame.Y));
+            }
+
+            framesPulled += chunk.Length;
+
+            // MixAudio returning fewer frames than requested means the stream has ended
+            if (chunk.Length < MixChunkFrames)
+                break;
+        }
+
+        playback.Stop();
+
+        if (pending.Count == 0)
+        {
+            LogWarning($"AudioStream {stream.ResourcePath} decoded to zero frames");
+            return;
+        }
+
+        pcmData = [.. pending];
+        sampleRate = (int)mixRate;
+        Duration = (int)(framesPulled * 1000 / mixRate);
+
+        // Bail if we're changing audio devices
+        if (CancelLoadingSounds)
+            return;
 
         context.MakeCurrent();
         BufferOpenALData();
@@ -46,30 +110,27 @@ public class ALBuffer
         loadingTask?.Wait();
     }
 
+    uint handle;
+
     public unsafe void BufferOpenALData()
     {
-        // Create a buffer and copy raw PCM data to it
+        if (pcmData == null)
+            return;
+
         Debug.Assert(handle == 0);
         handle = AL.GenBuffer();
 
-        if (data.byteData != null)
+        // MixAudio always returns interleaved stereo frames regardless of the source stream's
+        // own channel count (Godot's mixer upmixes mono internally), so stereo/16-bit is always correct here.
+        var format = AL.GetSoundFormat(2, 16);
+
+        fixed (short* shortPtr = pcmData)
         {
-            fixed (byte* bytePtr = data.byteData)
-            {
-                AL.BufferData(handle, data.format, (nint)bytePtr, data.byteCount, data.sampleRate);
-            }
-        }
-        else
-        {
-            fixed (short* shortPtr = data.shortData)
-            {
-                AL.BufferData(handle, data.format, (nint)shortPtr, data.byteCount, data.sampleRate);
-            }
+            AL.BufferData(handle, format, (nint)shortPtr, pcmData.Length * sizeof(short), sampleRate);
         }
 
         // Free memory
-        data.byteData = null;
-        data.shortData = null;
+        pcmData = null;
     }
 
     public bool TryCreateSource(bool spatialised, out ALSource source)

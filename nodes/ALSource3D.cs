@@ -32,7 +32,7 @@ public partial class ALSource3D : Node3D
             s.SetFilter(effect, directFilter, reverbFilter);
     }
 
-    bool soundNameErrorLogged = false;
+    bool streamsErrorLogged = false;
     bool alWarningLogged = false;
     int lastPlayedStreamIndex = -1;
     static Random random = new();
@@ -59,10 +59,10 @@ public partial class ALSource3D : Node3D
 
         if (streamIndex < 0)
         {
-            if (!soundNameErrorLogged)
+            if (!streamsErrorLogged)
             {
                 LogWarning($"Unable to play the ALSource3D {Name} because its Streams property is not set");
-                soundNameErrorLogged = true;
+                streamsErrorLogged = true;
             }
 
             return false;

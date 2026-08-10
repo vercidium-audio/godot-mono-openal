@@ -46,16 +46,16 @@ public unsafe partial class ALManager
     public void CancelLoadingAndDestroy()
     {
         // Tell the background sound-loading threads to stop loading
-        SoundLoader.CancelLoadingSounds = true;
+        ALBuffer.CancelLoadingSounds = true;
 
         // Wait for all threads to finish
-        foreach (var kv in GlobalSoundStorage)
-            kv.Value.WaitForTasks();
+        foreach (var buffer in DecodedStreams.Values)
+            buffer.WaitForTask();
 
-        GlobalSoundStorage.Clear();
-        SoundLoader.CancelLoadingSounds = false;
+        DecodedStreams.Clear();
+        ALBuffer.CancelLoadingSounds = false;
 
-        // Delete everything - unfortunately we can't copy data from buffers in one OpenAL context to another. We need to reload all OGG files :(
+        // Delete everything - unfortunately we can't copy data from buffers in one OpenAL context to another. We need to re-decode every AudioStream :(
         // TODO - use alcReopenDeviceSOFT to change between devices smoothly
         DestroyAll();
     }

@@ -44,11 +44,6 @@ First, it will add this text to your project's `.csproj` file:
 <ItemGroup>
     <!-- C# bindings for OpenAL Soft -->
     <PackageReference Include="openal_soft_bindings" Version="1.0.3" />
-
-    <!-- C# bindings for OpenAL Soft -->
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="BunLabs.NAudio.Flac" Version="2.0.1" />
-    <PackageReference Include="NVorbis" Version="0.10.5" />
 </ItemGroup>
 ```
 
@@ -68,8 +63,4 @@ To verify your installation worked, the Output Device Name field should be popul
 
 ### 5. Play a Sound
 
-Create an `ALSource3D` node and set its `Sound Name` to the path of the sound in the `res://audio` folder. To play the sound, invoke `.Play()` on the node via GDScript or C#.
-
-If your sound files live in a different folder, you can set a custom path using the `audio/openal_sound_folder.custom` setting:
-
-![Project Settings > Audio > OpenAL sound folder setting](docs/custom_audio_folder.png)
+Create an `ALSource3D` node and set its `Streams` array to one or more `AudioStream` resources (e.g. drag `.ogg`/`.wav`/`.mp3` files from the FileSystem dock into the Inspector). Each entry is decoded via Godot's own AudioStream/import pipeline, so any format Godot can import is supported. To play the sound, invoke `.Play()` on the node via GDScript or C# - if `Streams` has more than one entry, one is picked at random each time (see `PlaybackNoRepeat` to avoid repeats).

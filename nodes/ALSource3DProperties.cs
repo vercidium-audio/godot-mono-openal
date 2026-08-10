@@ -8,7 +8,7 @@ public partial class ALSource3D : Node3D
     float _referenceDistance = 8;
     bool _looping = false;
     bool _relative = false;
-    string[] _streams = [];
+    AudioStream[] _streams = [];
     bool _playbackNoRepeat = true;
 
     void UpdateProperty<T>(ref T field, T value, Action<T, ALSource> updateAction) where T : struct
@@ -71,9 +71,9 @@ public partial class ALSource3D : Node3D
         set => UpdateProperty(ref _relative, value, (v, source) => source.SetRelative(v));
     }
 
-    /// <summary>The pool of sound names to pick from each time this source plays, loaded from the res://audio folder. To use a different folder, set the `audio/openal_sound_folder.custom` setting in Project Settings</summary>
+    /// <summary>The pool of sounds to pick from each time this source plays. Decoded on demand via Godot's own AudioStream/import pipeline and cached per-resource by ALManager.</summary>
     [Export]
-    public string[] Streams
+    public AudioStream[] Streams
     {
         get => _streams;
         set
