@@ -14,15 +14,15 @@ public partial class ALSource3D : Node3D
     {
         var warnings = new List<string>();
 
-        if (SoundName != null)
+        foreach (var soundName in Streams)
         {
-            if (SoundName.Any(char.IsDigit))
+            if (soundName.Any(char.IsDigit))
             {
-                warnings.Add($"Sound file should not contain digits: {SoundName}");
+                warnings.Add($"Sound file should not contain digits: {soundName}");
             }
-            else if (SoundName.Contains('.'))
+            else if (soundName.Contains('.'))
             {
-                string soundPath = $"{Constants.AudioPath}/{SoundName}";
+                string soundPath = $"{Constants.AudioPath}/{soundName}";
 
                 if (!FileAccess.FileExists(soundPath))
                 {
@@ -36,7 +36,7 @@ public partial class ALSource3D : Node3D
 
                 foreach (var extension in SupportedFileExtensions)
                 {
-                    string soundPath = $"{Constants.AudioPath}/{SoundName}.{extension}";
+                    string soundPath = $"{Constants.AudioPath}/{soundName}.{extension}";
 
                     if (FileAccess.FileExists(soundPath))
                     {
@@ -46,7 +46,7 @@ public partial class ALSource3D : Node3D
                 }
 
                 if (!anyExist)
-                    warnings.Add($"Sound file not found: {SoundName}. File types attempted: {string.Join(", ", SupportedFileExtensions)}");
+                    warnings.Add($"Sound file not found: {soundName}. File types attempted: {string.Join(", ", SupportedFileExtensions)}");
             }
         }
 

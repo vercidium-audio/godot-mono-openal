@@ -8,7 +8,8 @@ public partial class ALSource3D : Node3D
     float _referenceDistance = 8;
     bool _looping = false;
     bool _relative = false;
-    string _soundName;
+    string[] _streams = [];
+    bool _playbackNoRepeat = true;
 
     void UpdateProperty<T>(ref T field, T value, Action<T, ALSource> updateAction) where T : struct
     {
@@ -70,15 +71,23 @@ public partial class ALSource3D : Node3D
         set => UpdateProperty(ref _relative, value, (v, source) => source.SetRelative(v));
     }
 
-    /// <summary>The name of the sound loaded from res://audio folder. To use a different folder, set the `audio/openal_sound_folder.custom` setting in Project Settings</summary>
+    /// <summary>The pool of sound names to pick from each time this source plays, loaded from the res://audio folder. To use a different folder, set the `audio/openal_sound_folder.custom` setting in Project Settings</summary>
     [Export]
-    public string SoundName
+    public string[] Streams
     {
-        get => _soundName;
+        get => _streams;
         set
         {
-            _soundName = value;
+            _streams = value ?? [];
             UpdateConfigurationWarnings();
         }
+    }
+
+    /// <summary>When true and Streams has more than one entry, the same entry is never picked twice in a row</summary>
+    [Export]
+    public bool PlaybackNoRepeat
+    {
+        get => _playbackNoRepeat;
+        set => _playbackNoRepeat = value;
     }
 }
