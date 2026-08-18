@@ -1,4 +1,4 @@
-namespace godot_openal;
+namespace godot_mono_openal;
 
 [Tool]
 public unsafe partial class ALManager : Node

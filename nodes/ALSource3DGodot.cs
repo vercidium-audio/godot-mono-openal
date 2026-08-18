@@ -1,4 +1,4 @@
-namespace godot_openal;
+namespace godot_mono_openal;
 
 public partial class ALSource3D : Node3D
 {

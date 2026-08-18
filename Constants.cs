@@ -1,4 +1,4 @@
-global using static godot_openal.Logger;
+global using static godot_mono_openal.Logger;
 
 global using System;
 global using System.Collections.Generic;
@@ -7,7 +7,7 @@ global using OpenAL;
 global using OpenAL.managed;
 global using Godot;
 
-namespace godot_openal;
+namespace godot_mono_openal;
 
 public static class Helper
 {
