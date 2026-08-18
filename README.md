@@ -1,37 +1,37 @@
-# OpenAL Plugin for Godot
+# OpenAL Plugin for Mono Godot
 
-This plugin provides custom nodes for using OpenAL Soft directly in Godot, bypassing Godot's built-in audio system.
+This plugin provides custom nodes for using OpenAL Soft directly in Mono Godot, bypassing Godot's built-in audio system.
 
 ## Setup Instructions
 
 ### 1. Clone the Plugin
 
-Clone `godot-openal` to the `your_game/addons/` folder:
+Clone `godot-mono-openal` to the `your_game/addons/` folder:
 
 ```bash
 cd your_game
 mkdir addons
 cd addons
-git clone git@github.com:vercidium-audio/godot-openal.git`
+git clone git@github.com:vercidium-audio/godot-mono-openal.git`
 ```
 
 ### 2. Enable the Plugin
 
 1. Open your Godot project
 2. Ensure your C# solution is created: `Project > Tools > C# > Create C# Solution`
-3. Enable `godot_openal` in `Project > Project Settings > Plugins`
+3. Enable `godot_mono_openal` in `Project > Project Settings > Plugins`
 
 If you get the below error, make sure you've created a C# solution first (step 2 above):
 
 ```
-[godot-openal] No C# solution found. Please create a C# solution first (Project → Tools → C# → Create C# Solution)
+[godot-mono-openal] No C# solution found. Please create a C# solution first (Project → Tools → C# → Create C# Solution)
 ```
 
-After creating a C# project, disable and enable the `godot-openal` plugin in `Project > Project Settings > Plugins` to perform setup.
+After creating a C# project, disable and enable the `godot-mono-openal` plugin in `Project > Project Settings > Plugins` to perform setup.
 
 ### 3. Automatic Dependency Setup
 
-The plugin setup script in `addons/godot-openal/plugin.gd` will perform some setup logic for you.
+The plugin setup script in `addons/godot-mono-openal/plugin.gd` will perform some setup logic for you.
 
 First, it will add this text to your project's `.csproj` file:
 
@@ -43,7 +43,7 @@ First, it will add this text to your project's `.csproj` file:
 
 <ItemGroup>
     <!-- C# bindings for OpenAL Soft -->
-    <PackageReference Include="openal_soft_bindings" Version="1.0.3" />
+    <PackageReference Include="openal_soft_bindings" Version="1.0.8" />
 </ItemGroup>
 ```
 

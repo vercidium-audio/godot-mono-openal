@@ -9,12 +9,12 @@ const PROPERTY_GROUP = """	<PropertyGroup>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>"""
 
-const DLL_SOURCE_WINDOWS = "addons/godot-openal/soft_oal.dll"
-const DLL_SOURCE_LINUX = "addons/godot-openal/libopenal.so.1"
+const DLL_SOURCE_WINDOWS = "addons/godot-mono-openal/soft_oal.dll"
+const DLL_SOURCE_LINUX = "addons/godot-mono-openal/libopenal.so.1"
 
 const AUTOLOAD_NAME = "ALManager"
-const AUTOLOAD_PATH = "res://addons/godot-openal/autoload/ALManagerAutoload.tscn"
-const AUTOLOAD_TEMPLATE_PATH = "res://addons/godot-openal/autoload/ALManagerAutoload.tscn.example"
+const AUTOLOAD_PATH = "res://addons/godot-mono-openal/autoload/ALManagerAutoload.tscn"
+const AUTOLOAD_TEMPLATE_PATH = "res://addons/godot-mono-openal/autoload/ALManagerAutoload.tscn.example"
 
 func _enter_tree():
 	add_custom_type("ALSource3D", "Node3D", preload("nodes/ALSource3D.cs"), null)
@@ -30,7 +30,7 @@ func _enter_tree():
 	# Register autoload
 	_add_autoload()
 
-	print("[godot-openal] Plugin setup complete")
+	print("[godot-mono-openal] Plugin setup complete")
 
 func _exit_tree():
 	remove_custom_type("ALSource3D")
@@ -42,7 +42,7 @@ func _exit_tree():
 	if ProjectSettings.settings_changed.is_connected(_on_settings_changed):
 		ProjectSettings.settings_changed.disconnect(_on_settings_changed)
 
-	print("[godot-openal] Plugin disabled")
+	print("[godot-mono-openal] Plugin disabled")
 
 func _on_settings_changed():
 	_setup_project()
@@ -53,7 +53,7 @@ func _setup_project():
 	
 	# Check if .csproj exists
 	if not FileAccess.file_exists(csproj_path):
-		push_error("[godot-openal] No C# solution found. Please create a C# solution (Project → Tools → C# → Create C# Solution) and then re-enable this plugin")
+		push_error("[godot-mono-openal] No C# solution found. Please create a C# solution (Project → Tools → C# → Create C# Solution) and then re-enable this plugin")
 		return
 	
 	# Read the .csproj file
@@ -72,7 +72,7 @@ func _setup_project():
 	# Find the closing </Project> tag and insert our packages before it
 	var insert_pos = content.rfind("</Project>")
 	if insert_pos == -1:
-		push_error("[godot-openal] Could not find a </Project> tag in the .csproj file")
+		push_error("[godot-mono-openal] Could not find a </Project> tag in the .csproj file")
 		return
 	
 	# Build the content to insert (PropertyGroup + ItemGroup)
@@ -86,7 +86,7 @@ func _setup_project():
 	if file:
 		file.store_string(new_content)
 		file.close()
-		print("[godot-openal] Added NuGet packages to ", csproj_path)
+		print("[godot-mono-openal] Added NuGet packages to ", csproj_path)
 	
 	_copy_dll()
 
@@ -114,11 +114,11 @@ func _copy_dll():
 	if FileAccess.file_exists(source_path):
 		var result = DirAccess.copy_absolute(source_path, dest_path)
 		if result == OK:
-			print("[godot-openal] Copied %s to project root" % lib_name)
+			print("[godot-mono-openal] Copied %s to project root" % lib_name)
 		else:
-			push_error("[godot-openal] Failed to copy %s: %s" % [lib_name, result])
+			push_error("[godot-mono-openal] Failed to copy %s: %s" % [lib_name, result])
 	else:
-		push_error("[godot-openal] Source library not found at ", source_path)
+		push_error("[godot-mono-openal] Source library not found at ", source_path)
 
 func _add_autoload():
 	# Check if autoload is already registered
@@ -129,14 +129,14 @@ func _add_autoload():
 	if not FileAccess.file_exists(AUTOLOAD_PATH):
 		if FileAccess.file_exists(AUTOLOAD_TEMPLATE_PATH):
 			DirAccess.copy_absolute(ProjectSettings.globalize_path(AUTOLOAD_TEMPLATE_PATH), ProjectSettings.globalize_path(AUTOLOAD_PATH))
-			print("[godot-openal] Created ALManagerAutoload.tscn from template")
+			print("[godot-mono-openal] Created ALManagerAutoload.tscn from template")
 		else:
-			push_error("[godot-openal] Template file not found at ", AUTOLOAD_TEMPLATE_PATH)
+			push_error("[godot-mono-openal] Template file not found at ", AUTOLOAD_TEMPLATE_PATH)
 			return
 
 	# Register the autoload
 	add_autoload_singleton(AUTOLOAD_NAME, AUTOLOAD_PATH)
-	print("[godot-openal] Registered ALManager autoload")
+	print("[godot-mono-openal] Registered ALManager autoload")
 
 func _remove_autoload():
 	# Check if autoload exists before removing
@@ -145,4 +145,4 @@ func _remove_autoload():
 
 	# Remove the autoload
 	remove_autoload_singleton(AUTOLOAD_NAME)
-	print("[godot-openal] Removed ALManager autoload")
+	print("[godot-mono-openal] Removed ALManager autoload")

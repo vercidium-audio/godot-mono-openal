@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dtgm27rr5y8rk"]
 
-[ext_resource type="Script" uid="uid://dywdgs23t3nc3" path="res://addons/godot-openal/nodes/ALManager.cs" id="1_hpu4e"]
+[ext_resource type="Script" uid="uid://dywdgs23t3nc3" path="res://addons/godot-mono-openal/nodes/ALManager.cs" id="1_hpu4e"]
 
 [node name="ALManager" type="Node" unique_id=2062366179]
 script = ExtResource("1_hpu4e")
