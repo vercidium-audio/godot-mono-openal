@@ -39,7 +39,6 @@ public unsafe partial class ALManager : Node
         if (!Initialised)
         {
             CreateDeviceAndContext();
-            LoadAudioFiles();
         }
     }
 

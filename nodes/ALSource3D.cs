@@ -32,17 +32,37 @@ public partial class ALSource3D : Node3D
             s.SetFilter(effect, directFilter, reverbFilter);
     }
 
-    bool soundNameErrorLogged = false;
+    bool streamsErrorLogged = false;
     bool alWarningLogged = false;
+    int lastPlayedStreamIndex = -1;
+    static Random random = new();
+
+    int PickStreamIndex()
+    {
+        if (_streams.Length == 0)
+            return -1;
+
+        if (_streams.Length == 1)
+            return 0;
+
+        var index = random.Next(_streams.Length);
+
+        if (PlaybackNoRepeat && index == lastPlayedStreamIndex)
+            index = (index + 1) % _streams.Length;
+
+        return index;
+    }
 
     public virtual bool Play()
     {
-        if (SoundName == null)
+        var streamIndex = PickStreamIndex();
+
+        if (streamIndex < 0)
         {
-            if (!soundNameErrorLogged)
+            if (!streamsErrorLogged)
             {
-                LogWarning($"Unable to play the ALSource3D {Name} because its SoundName property is not set");
-                soundNameErrorLogged = true;
+                LogWarning($"Unable to play the ALSource3D {Name} because its Streams property is not set");
+                streamsErrorLogged = true;
             }
 
             return false;
@@ -59,8 +79,10 @@ public partial class ALSource3D : Node3D
             return false;
         }
 
-        if (!ALManager.instance.TryCreateSource(SoundName, true, out var source))
+        if (!ALManager.instance.TryCreateSource(_streams[streamIndex], true, out var source))
             return false;
+
+        lastPlayedStreamIndex = streamIndex;
 
         // Set initial properties
         source.SetRelative(Relative);

@@ -8,7 +8,8 @@ public partial class ALSource3D : Node3D
     float _referenceDistance = 8;
     bool _looping = false;
     bool _relative = false;
-    string _soundName;
+    AudioStream[] _streams = [];
+    bool _playbackNoRepeat = true;
 
     void UpdateProperty<T>(ref T field, T value, Action<T, ALSource> updateAction) where T : struct
     {
@@ -70,15 +71,44 @@ public partial class ALSource3D : Node3D
         set => UpdateProperty(ref _relative, value, (v, source) => source.SetRelative(v));
     }
 
-    /// <summary>The name of the sound loaded from res://audio folder. To use a different folder, set the `audio/openal_sound_folder.custom` setting in Project Settings</summary>
+    /// <summary>The pool of sounds to pick from each time this source plays. Decoded on demand via Godot's own AudioStream/import pipeline and cached per-resource by ALManager.</summary>
     [Export]
-    public string SoundName
+    public AudioStream[] Streams
     {
-        get => _soundName;
+        get => _streams;
         set
         {
-            _soundName = value;
+            _streams = value ?? [];
             UpdateConfigurationWarnings();
         }
+    }
+
+    /// <summary>When true and Streams has more than one entry, the same entry is never picked twice in a row</summary>
+    [Export]
+    public bool PlaybackNoRepeat
+    {
+        get => _playbackNoRepeat;
+        set => _playbackNoRepeat = value;
+    }
+
+    /// <summary>Script-only alias for <see cref="Streams"/>, matching AudioStreamPlayer3D's single "stream" property. Lets a script written against AudioStreamPlayer3D keep working unmodified after converting to this node. Reads back the first entry of <see cref="Streams"/>; writes replace <see cref="Streams"/> with a one-entry array.</summary>
+    public AudioStream Stream
+    {
+        get => _streams.Length == 0 ? null : _streams[0];
+        set => Streams = [value];
+    }
+
+    /// <summary>Script-only alias for <see cref="Pitch"/>, matching AudioStreamPlayer3D's "pitch_scale" property.</summary>
+    public float PitchScale
+    {
+        get => Pitch;
+        set => Pitch = value;
+    }
+
+    /// <summary>Script-only alias for <see cref="Volume"/>, matching AudioStreamPlayer3D's logarithmic "volume_db" property. Converts through LinearToDb/DbToLinear since <see cref="Volume"/> is linear.</summary>
+    public float VolumeDb
+    {
+        get => Mathf.LinearToDb(Volume);
+        set => Volume = Mathf.DbToLinear(value);
     }
 }

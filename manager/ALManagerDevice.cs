@@ -53,7 +53,6 @@ public unsafe partial class ALManager
 
         CancelLoadingAndDestroy();
         CreateDeviceAndContext();
-        LoadAudioFiles();
 
         // Invoke device recreated callbacks (e.g. for recreating reverb effects)
         foreach (var callback in OnDeviceRecreatedCallbacks)
@@ -78,7 +77,7 @@ public unsafe partial class ALManager
             // Handle disconnect - switch to a different device
             else if (!InputDeviceList.Contains(InputDeviceName))
             {
-                LogWarning($"Input device '{InputDeviceName}' disconnected. Switching to '{OutputDeviceList[0]}'");
+                LogWarning($"Input device '{InputDeviceName}' disconnected. Switching to '{InputDeviceList[0]}'");
                 InputDeviceName = InputDeviceList[0];
             }
         }
