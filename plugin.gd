@@ -12,23 +12,23 @@ const PROPERTY_GROUP = """	<PropertyGroup>
 const DLL_SOURCE_WINDOWS = "addons/godot-mono-openal/soft_oal.dll"
 const DLL_SOURCE_LINUX = "addons/godot-mono-openal/libopenal.so.1"
 
-const AUTOLOAD_NAME = "ALManager"
-const AUTOLOAD_PATH = "res://addons/godot-mono-openal/autoload/ALManagerAutoload.tscn"
-const AUTOLOAD_TEMPLATE_PATH = "res://addons/godot-mono-openal/autoload/ALManagerAutoload.tscn.example"
+const SINGLETON_NAME = "ALManager"
+
+var _al_manager: Node
 
 func _enter_tree():
 	add_custom_type("ALSource3D", "Node3D", preload("nodes/ALSource3D.cs"), null)
 	add_custom_type("ALManager", "Node", preload("nodes/ALManager.cs"), null)
-	
+
 	# Connect to project settings to detect solution generation
 	if not ProjectSettings.settings_changed.is_connected(_on_settings_changed):
 		ProjectSettings.settings_changed.connect(_on_settings_changed)
-	
+
 	# Run setup immediately in case solution already exists
 	_setup_project()
 
-	# Register autoload
-	_add_autoload()
+	# Register the ALManager Engine singleton
+	_add_singleton()
 
 	print("[godot-mono-openal] Plugin setup complete")
 
@@ -36,8 +36,8 @@ func _exit_tree():
 	remove_custom_type("ALSource3D")
 	remove_custom_type("ALManager")
 
-	# Remove autoload
-	_remove_autoload()
+	# Remove the ALManager Engine singleton
+	_remove_singleton()
 
 	if ProjectSettings.settings_changed.is_connected(_on_settings_changed):
 		ProjectSettings.settings_changed.disconnect(_on_settings_changed)
@@ -120,29 +120,28 @@ func _copy_dll():
 	else:
 		push_error("[godot-mono-openal] Source library not found at ", source_path)
 
-func _add_autoload():
-	# Check if autoload is already registered
-	if ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
+func _add_singleton():
+	# Check if the singleton is already registered (e.g. plugin reload)
+	if Engine.has_singleton(SINGLETON_NAME):
 		return
 
-	# Copy template if the autoload scene doesn't exist
-	if not FileAccess.file_exists(AUTOLOAD_PATH):
-		if FileAccess.file_exists(AUTOLOAD_TEMPLATE_PATH):
-			DirAccess.copy_absolute(ProjectSettings.globalize_path(AUTOLOAD_TEMPLATE_PATH), ProjectSettings.globalize_path(AUTOLOAD_PATH))
-			print("[godot-mono-openal] Created ALManagerAutoload.tscn from template")
-		else:
-			push_error("[godot-mono-openal] Template file not found at ", AUTOLOAD_TEMPLATE_PATH)
-			return
+	# ALManager still needs a per-frame tick for ALContext.Process()/DisposeFinishedSources()/
+	# capture device updates - it gets one by being added as a direct child of the root viewport
+	# (not a scene autoload, so it survives scene changes without appearing in any scene's tree
+	# or requiring a .tscn file), which still drives its _Process override normally.
+	_al_manager = preload("nodes/ALManager.cs").new()
+	_al_manager.name = SINGLETON_NAME
+	get_tree().root.add_child.call_deferred(_al_manager)
 
-	# Register the autoload
-	add_autoload_singleton(AUTOLOAD_NAME, AUTOLOAD_PATH)
-	print("[godot-mono-openal] Registered ALManager autoload")
+	Engine.register_singleton(SINGLETON_NAME, _al_manager)
+	print("[godot-mono-openal] Registered ALManager singleton")
 
-func _remove_autoload():
-	# Check if autoload exists before removing
-	if not ProjectSettings.has_setting("autoload/" + AUTOLOAD_NAME):
-		return
+func _remove_singleton():
+	if Engine.has_singleton(SINGLETON_NAME):
+		Engine.unregister_singleton(SINGLETON_NAME)
 
-	# Remove the autoload
-	remove_autoload_singleton(AUTOLOAD_NAME)
-	print("[godot-mono-openal] Removed ALManager autoload")
+	if is_instance_valid(_al_manager):
+		_al_manager.queue_free()
+	_al_manager = null
+
+	print("[godot-mono-openal] Removed ALManager singleton")
