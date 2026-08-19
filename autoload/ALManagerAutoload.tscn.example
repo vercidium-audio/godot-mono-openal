@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://b0xqk5mvwjp8y"]
-
-[ext_resource type="Script" path="res://addons/godot-mono-openal/nodes/ALManager.cs" id="1_almanager"]
-
-[node name="ALManager" type="Node"]
-script = ExtResource("1_almanager")
