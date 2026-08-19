@@ -43,7 +43,7 @@ First, it will add this text to your project's `.csproj` file:
 
 <ItemGroup>
     <!-- C# bindings for OpenAL Soft -->
-    <PackageReference Include="openal_soft_bindings" Version="1.0.8" />
+    <PackageReference Include="openal_soft_bindings" Version="1.0.9" />
 </ItemGroup>
 ```
 
