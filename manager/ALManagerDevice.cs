@@ -2,6 +2,30 @@ namespace godot_mono_openal;
 
 public unsafe partial class ALManager
 {
+    // Matches va_device_name.h's DEFAULT_DEVICE_LABEL in the native Godot plugin - the
+    // audio/vaudio/output_device Project Setting stores this label rather than "" (a strict
+    // PROPERTY_HINT_ENUM dropdown must always show the current value as one of its own entries),
+    // translated back to "" ("driver default") only when read here.
+    const string DefaultDeviceLabel = "System Default";
+
+    int _maximumAuxiliarySends;
+    int _sampleRate;
+    bool _hrtfEnabled;
+
+    // Reads audio/vaudio/output_device, audio/vaudio/max_reverb_sends, audio/vaudio/sample_rate
+    // and audio/vaudio/hrtf_enabled once - matches native's read_settings_from_project_settings()
+    // in al_manager.cpp. plugin.gd's _register_project_settings() registers these (with defaults)
+    // before the singleton is created, so every setting already exists here.
+    void ReadSettingsFromProjectSettings()
+    {
+        var deviceNameSetting = ProjectSettings.GetSetting("audio/vaudio/output_device").AsString();
+        _outputDeviceName = deviceNameSetting == DefaultDeviceLabel ? "" : deviceNameSetting;
+
+        _maximumAuxiliarySends = ProjectSettings.GetSetting("audio/vaudio/max_reverb_sends").AsInt32();
+        _sampleRate = ProjectSettings.GetSetting("audio/vaudio/sample_rate").AsInt32();
+        _hrtfEnabled = ProjectSettings.GetSetting("audio/vaudio/hrtf_enabled").AsBool();
+    }
+
     void CreateDeviceAndContext()
     {
         // Shouldn't be initialising in the editor
@@ -10,21 +34,22 @@ public unsafe partial class ALManager
         Debug.Assert(ALContext == null);
         Debug.Assert(ALDevice == null);
 
-        // Early exit - no speakers or headphones
-        if (OutputDeviceName == "")
-            return;
+        ReadSettingsFromProjectSettings();
 
-        // Create an OpenAL device
-        ALDevice = new(OutputDeviceName);
+        // Create an OpenAL device - null (not "") means "use the driver default": the P/Invoke
+        // marshals a C# null to a native NULL, which alcOpenDevice requires for its own "driver
+        // default" behaviour, whereas "" marshals to a valid pointer to an empty C string and
+        // fails - matches native's `device_name.empty() ? nullptr : device_name.c_str()`.
+        ALDevice = new(string.IsNullOrEmpty(_outputDeviceName) ? null : _outputDeviceName);
 
 
         // Create an OpenAL context
         var settings = new ALContextSettings()
         {
-            HRTFEnabled = HRTFEnabled,
+            HRTFEnabled = _hrtfEnabled,
             HRTFID = 0,
-            SampleRate = SampleRate,
-            MaximumAuxiliarySends = MaximumAuxiliarySends,
+            SampleRate = _sampleRate,
+            MaximumAuxiliarySends = _maximumAuxiliarySends,
             MaximumMonoSources = MaximumMonoSources,
             MaximumStereoSources = MaximumStereoSources,
             LogFunction = GD.PushWarning,
@@ -84,23 +109,18 @@ public unsafe partial class ALManager
 
         OutputDeviceList = AL.GetStringList(IntPtr.Zero, AL.ALC_ALL_DEVICES_SPECIFIER);
 
-        if (OutputDeviceList.Count == 0)
+        // Rebuild audio/vaudio/output_device's PROPERTY_HINT_ENUM hint_string now that the real
+        // device list is known - matches native's refresh_output_device_hint(). Registered with
+        // just DefaultDeviceLabel by plugin.gd's _register_project_settings() until this runs.
+        var devices = new List<string> { DefaultDeviceLabel };
+        devices.AddRange(OutputDeviceList);
+
+        ProjectSettings.AddPropertyInfo(new Godot.Collections.Dictionary
         {
-            OutputDeviceName = "";
-        }
-        else
-        {
-            // Auto-select for the first time
-            if (string.IsNullOrEmpty(OutputDeviceName))
-            {
-                OutputDeviceName = OutputDeviceList[0];
-            }
-            // Handle disconnect - switch to a different device
-            else if (!OutputDeviceList.Contains(OutputDeviceName))
-            {
-                LogWarning($"Output device '{OutputDeviceName}' disconnected. Switching to '{OutputDeviceList[0]}'");
-                OutputDeviceName = OutputDeviceList[0];
-            }
-        }
+            { "name", "audio/vaudio/output_device" },
+            { "type", (int)Variant.Type.String },
+            { "hint", (int)PropertyHint.Enum },
+            { "hint_string", string.Join(",", devices) }
+        });
     }
 }

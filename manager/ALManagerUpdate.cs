@@ -25,12 +25,20 @@ public unsafe partial class ALManager
     }
 
     public void SetListenerGain(float gain) => AL.Listenerf(AL.AL_GAIN, gain);
-    public void SetHRTFEnabled(bool enabled) => RecreateDevice();
-    public void SetSampleRate(int sampleRate) => RecreateDevice();
     public void SetDistanceModel(ALDistanceModel model) => AL.DistanceModel((int)model);
     public void SetMetersPerUnit(float metersPerUnit) => AL.Listenerf(AL.AL_METERS_PER_UNIT, metersPerUnit);
     public void SetSpeedOfSound(float speedOfSound) => AL.SpeedOfSound(speedOfSound);
     public void SetReverbOnly(bool value) => _reverbOnly = value;
+
+    // Runtime device switching, reusing whichever max_reverb_sends/sample_rate/hrtf_enabled were
+    // read from Project Settings at initialize() time - matches native's bound
+    // ALManager::set_output_device(), the only one of the four audio/vaudio/* settings it exposes
+    // for runtime changes.
+    public void SetOutputDevice(string deviceName)
+    {
+        _outputDeviceName = deviceName;
+        RecreateDevice();
+    }
 
     void SetMicrophoneEnabled(bool enabled)
     {

@@ -30,7 +30,7 @@ public unsafe partial class ALManager
 
         ALCaptureDevice = new(new()
         {
-            SampleRate = SampleRate,
+            SampleRate = _sampleRate,
             DeviceName = InputDeviceName,
             DataCallback = (a, b) => OnMicrophoneData?.Invoke(a, b),
             LogCallback = GD.PushWarning,

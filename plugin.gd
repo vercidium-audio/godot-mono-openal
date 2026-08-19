@@ -14,6 +14,16 @@ const DLL_SOURCE_LINUX = "addons/godot-mono-openal/libopenal.so.1"
 
 const SINGLETON_NAME = "ALManager"
 
+# "audio/vaudio/*" Project Settings - kept identical to the native Godot plugin's
+# audio/vaudio/output_device, audio/vaudio/max_reverb_sends, audio/vaudio/sample_rate and
+# audio/vaudio/hrtf_enabled keys (see register_project_settings() in that repo's
+# src/register_types.cpp), so a project can switch between the native and Mono plugins without
+# reconfiguring anything. DEFAULT_DEVICE_LABEL matches va_device_name.h - stored/shown as this
+# label rather than "", since a strict PROPERTY_HINT_ENUM dropdown must always show the current
+# value as one of its own entries. ALManager.cs translates it back to "" (driver default) when
+# reading the setting.
+const DEFAULT_DEVICE_LABEL = "System Default"
+
 var _al_manager: Node
 
 func _enter_tree():
@@ -26,6 +36,9 @@ func _enter_tree():
 
 	# Run setup immediately in case solution already exists
 	_setup_project()
+
+	# Register audio/vaudio/* Project Settings before the singleton reads them
+	_register_project_settings()
 
 	# Register the ALManager Engine singleton
 	_add_singleton()
@@ -119,6 +132,57 @@ func _copy_dll():
 			push_error("[godot-mono-openal] Failed to copy %s: %s" % [lib_name, result])
 	else:
 		push_error("[godot-mono-openal] Source library not found at ", source_path)
+
+func _register_project_settings():
+	# output_device: stored as DEFAULT_DEVICE_LABEL, not "", so the strict PROPERTY_HINT_ENUM
+	# dropdown below always has a current value among its own entries.
+	# ALManager.cs translates DEFAULT_DEVICE_LABEL back to "" ("driver default") when it reads
+	# this setting, and rebuilds the hint_string below (via ProjectSettings.AddPropertyInfo)
+	# once the real device list is known from OpenAL - registered with just the default label
+	# here since GDScript has no OpenAL binding of its own to enumerate devices this early.
+	if not ProjectSettings.has_setting("audio/vaudio/output_device"):
+		ProjectSettings.set_setting("audio/vaudio/output_device", DEFAULT_DEVICE_LABEL)
+
+	ProjectSettings.set_initial_value("audio/vaudio/output_device", DEFAULT_DEVICE_LABEL)
+
+	ProjectSettings.add_property_info({
+		"name": "audio/vaudio/output_device",
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_ENUM,
+		"hint_string": DEFAULT_DEVICE_LABEL,
+	})
+
+	# max_reverb_sends: dev-only setting (not end-user-facing), default 1
+	if not ProjectSettings.has_setting("audio/vaudio/max_reverb_sends"):
+		ProjectSettings.set_setting("audio/vaudio/max_reverb_sends", 1)
+
+	ProjectSettings.set_initial_value("audio/vaudio/max_reverb_sends", 1)
+
+	ProjectSettings.add_property_info({
+		"name": "audio/vaudio/max_reverb_sends",
+		"type": TYPE_INT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0,16,or_greater",
+	})
+
+	# sample_rate: 0 means "driver default" - never shown to the user as 0.
+	if not ProjectSettings.has_setting("audio/vaudio/sample_rate"):
+		ProjectSettings.set_setting("audio/vaudio/sample_rate", 0)
+
+	ProjectSettings.set_initial_value("audio/vaudio/sample_rate", 0)
+
+	ProjectSettings.add_property_info({
+		"name": "audio/vaudio/sample_rate",
+		"type": TYPE_INT,
+		"hint": PROPERTY_HINT_ENUM,
+		"hint_string": "System Default:0,22050,44100,48000,96000",
+	})
+
+	# hrtf_enabled: default true
+	if not ProjectSettings.has_setting("audio/vaudio/hrtf_enabled"):
+		ProjectSettings.set_setting("audio/vaudio/hrtf_enabled", true)
+
+	ProjectSettings.set_initial_value("audio/vaudio/hrtf_enabled", true)
 
 func _add_singleton():
 	# Check if the singleton is already registered (e.g. plugin reload)

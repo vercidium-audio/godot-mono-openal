@@ -68,14 +68,11 @@ public unsafe partial class ALManager : Node
     }
 
     float _masterVolume = 1;
-    bool _hrtfEnabled = true;
     ALDistanceModel _distanceModel = ALDistanceModel.InverseDistance;
     float _metersPerUnit = 1;
     float _speedOfSound = 343;
     int _maximumMonoSources = 16;
     int _maximumStereoSources = 240;
-    int _maximumAuxiliarySends = 1;
-    int _sampleRate = 44100;
     int _outputDeviceIndex;
     int _inputDeviceIndex;
     bool _microphoneEnabled;
@@ -122,13 +119,6 @@ public unsafe partial class ALManager : Node
     }
 
     [Export]
-    public bool HRTFEnabled
-    {
-        get => _hrtfEnabled;
-        set => UpdateProperty(ref _hrtfEnabled, value, SetHRTFEnabled);
-    }
-
-    [Export]
     public ALDistanceModel DistanceModel
     {
         get => _distanceModel;
@@ -170,19 +160,11 @@ public unsafe partial class ALManager : Node
         set => UpdateProperty(ref _maximumStereoSources, Math.Max(0, value), (v) => CantChangeAtRuntime("MaximumStereoSources", _maximumStereoSources, v));
     }
 
-    [Export]
-    public int MaximumAuxiliarySends
-    {
-        get => _maximumAuxiliarySends;
-        set => UpdateProperty(ref _maximumAuxiliarySends, Math.Max(0, value), (v) => CantChangeAtRuntime("MaximumAuxiliarySends", _maximumAuxiliarySends, v));
-    }
-
-    [Export]
-    public int SampleRate
-    {
-        get => _sampleRate;
-        set => UpdateProperty(ref _sampleRate, Math.Max(0, value), SetSampleRate);
-    }
+    // MaximumAuxiliarySends, SampleRate and HRTFEnabled are read once from Project Settings
+    // (audio/vaudio/*) during CreateDeviceAndContext() - see ALManagerDevice.cs - matching
+    // native's read_settings_from_project_settings(); they're not settable at runtime there
+    // either, since ALManager's only bound device-switching method (set_output_device) reuses
+    // whatever these were at initialize() time.
 
     [Export]
     public bool MicrophoneEnabled
@@ -198,22 +180,13 @@ public unsafe partial class ALManager : Node
         set => UpdateProperty(ref _microphoneThreshold, Math.Max(0, value));
     }
 
+    // Read once from Project Settings (audio/vaudio/output_device) during
+    // CreateDeviceAndContext() - see ALManagerDevice.cs - no longer an inspector-editable
+    // property, matching native's output device now only being configurable via Project
+    // Settings (or ALManager.SetOutputDevice at runtime).
     string _outputDeviceName;
-    string _inputDeviceName;
 
-    // Properties for internal access to device names
-    string OutputDeviceName
-    {
-        get
-        {
-            return _outputDeviceName;
-        }
-        set
-        {
-            _outputDeviceName = value;
-            RecreateDevice();
-        }
-    }
+    string _inputDeviceName;
 
     string InputDeviceName
     {
@@ -234,17 +207,8 @@ public unsafe partial class ALManager : Node
     {
         var properties = new Godot.Collections.Array<Godot.Collections.Dictionary>();
 
-        if (OutputDeviceList.Count == 0 || InputDeviceList.Count == 0)
+        if (InputDeviceList.Count == 0)
             RefreshDeviceLists();
-
-        properties.Add(new Godot.Collections.Dictionary
-        {
-            { "name", "OutputDeviceName" },
-            { "type", (int)Variant.Type.String },
-            { "usage", (int)(PropertyUsageFlags.Default) },
-            { "hint", (int)PropertyHint.Enum },
-            { "hint_string", OutputDeviceList.Count > 0 ? string.Join(",", OutputDeviceList) : "" }
-        });
 
         properties.Add(new Godot.Collections.Dictionary
         {
@@ -266,12 +230,6 @@ public unsafe partial class ALManager : Node
             return value;
         }
 
-        if (property == "OutputDeviceName")
-        {
-            var value = _outputDeviceName ?? "";
-            return value;
-        }
-
         return default;
     }
 
@@ -281,13 +239,6 @@ public unsafe partial class ALManager : Node
         {
             _inputDeviceName = value.AsString();
             RecreateCaptureDevice();
-            return true;
-        }
-
-        if (property == "OutputDeviceName")
-        {
-            _outputDeviceName = value.AsString();
-            RecreateDevice();
             return true;
         }
 
