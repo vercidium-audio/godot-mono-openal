@@ -51,15 +51,18 @@ Second, it will copy `soft_oal.dll` or `libopenal.so.1` (depending on your opera
 
 ### 4. Customise the ALManager
 
-The `addons/godot0openal/autoload/ALManagerAutoload.tscn` scene contains the global `ALManager` node.
+The plugin registers `ALManager` as an Engine singleton (not a scene/autoload), and overrides Godot's inbuilt audio system. Its output device, reverb send count, sample rate and HRTF are configured via `Project > Project Settings > General > Audio > Vaudio`:
 
-> If you don't see this file, you may not have enabled the plugin correctly. See 'Step 2. Enable the Plugin' above.
+- `output_device` - which OpenAL device to use, or "System Default"
+- `max_reverb_sends` - number of auxiliary sends available per source
+- `sample_rate` - device sample rate, or "System Default"
+- `hrtf_enabled` - whether to request HRTF from the driver
 
-![Scene tree with ALManager child nodes](docs/al_manager_node.png)
+> If you don't see these settings, you may not have enabled the plugin correctly. See 'Step 2. Enable the Plugin' above, and make sure "Advanced Settings" is toggled on in the Project Settings dialog.
 
-This `ALManager` node overrides Godot's inbuilt audio system, and has settings for controlling volume, enabling HRTF, output/input device, etc.
+To verify your installation worked, the `output_device` setting should show a real device name once you've enabled the plugin (rather than just "System Default").
 
-To verify your installation worked, the Output Device Name field should be populated in the inspector.
+Everything else (master volume, distance model, meters per unit, speed of sound, listener position/orientation, etc.) is runtime-only and not exposed as a Project Setting or inspector property - call the corresponding methods/properties on `ALManager.instance` from code, e.g. `ALManager.instance.MasterVolume = 0.5f;`.
 
 ### 5. Play a Sound
 

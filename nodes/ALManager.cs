@@ -83,63 +83,58 @@ public unsafe partial class ALManager : Node
     float _listenerYaw;
     bool _reverbOnly;
 
-    [Export]
+    // MasterVolume/DistanceModel/MetersPerUnit/SpeedOfSound/ReverbOnly/ListenerPosition/
+    // ListenerVelocity/ListenerPitch/ListenerYaw are runtime-API-only (no inspector UI),
+    // matching native's shape - call the Set* methods below directly from code.
+
     public Vector3 ListenerPosition
     {
         get => _listenerPosition;
         set => UpdateProperty(ref _listenerPosition, value, SetListenerPosition);
     }
 
-    [Export]
     public Vector3 ListenerVelocity
     {
         get => _listenerVelocity;
         set => UpdateProperty(ref _listenerVelocity, value, SetListenerVelocity);
     }
 
-    [Export]
     public float ListenerPitch
     {
         get => _listenerPitch;
         set => UpdateProperty(ref _listenerPitch, value, SetListenerPitch);
     }
 
-    [Export]
     public float ListenerYaw
     {
         get => _listenerYaw;
         set => UpdateProperty(ref _listenerYaw, value, SetListenerYaw);
     }
 
-    [Export]
     public float MasterVolume
     {
         get => _masterVolume;
         set => UpdateProperty(ref _masterVolume, MathF.Max(0, value), SetListenerGain);
     }
 
-    [Export]
     public ALDistanceModel DistanceModel
     {
         get => _distanceModel;
         set => UpdateProperty(ref _distanceModel, value, SetDistanceModel);
     }
 
-    [Export]
     public float MetersPerUnit
     {
         get => _metersPerUnit;
         set => UpdateProperty(ref _metersPerUnit, MathF.Max(0, value), SetMetersPerUnit);
     }
 
-    [Export]
     public float SpeedOfSound
     {
         get => _speedOfSound;
         set => UpdateProperty(ref _speedOfSound, MathF.Max(0, value), SetSpeedOfSound);
     }
 
-    [Export]
     public bool ReverbOnly
     {
         get => _reverbOnly;
