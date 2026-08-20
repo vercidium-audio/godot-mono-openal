@@ -76,6 +76,29 @@ public unsafe partial class ALManager
         if (!Initialised)
             return;
 
+        // Prefer ALDevice.Reopen (ALC_SOFT_reopen_device) - it redirects the existing ALC
+        // device/context to the new output device in place, so every existing AL object (sources,
+        // buffers, filters, effects) stays valid and DecodedStreams doesn't need re-decoding.
+        // Reopen itself returns false (no exception) if the extension isn't present on this
+        // device, in which case fall back to the old CancelLoadingAndDestroy()+
+        // CreateDeviceAndContext() teardown/recreate below, which invalidates all of those and
+        // fires the device destroyed/recreated callbacks. Matches native's ALManager::reinitialize
+        // (al_manager.cpp, vaudio-godot-native-openal-3d-source).
+        ReadSettingsFromProjectSettings();
+
+        var attribs = ALContext.GetAttribs(new()
+        {
+            HRTFEnabled = _hrtfEnabled,
+            HRTFID = 0,
+            SampleRate = _sampleRate,
+            MaximumAuxiliarySends = _maximumAuxiliarySends,
+            MaximumMonoSources = MaximumMonoSources,
+            MaximumStereoSources = MaximumStereoSources,
+        });
+
+        if (ALDevice.Reopen(string.IsNullOrEmpty(_outputDeviceName) ? null : _outputDeviceName, attribs))
+            return;
+
         CancelLoadingAndDestroy();
         CreateDeviceAndContext();
 

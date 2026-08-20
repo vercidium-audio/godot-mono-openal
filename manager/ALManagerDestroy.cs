@@ -56,7 +56,8 @@ public unsafe partial class ALManager
         ALBuffer.CancelLoadingSounds = false;
 
         // Delete everything - unfortunately we can't copy data from buffers in one OpenAL context to another. We need to re-decode every AudioStream :(
-        // TODO - use alcReopenDeviceSOFT to change between devices smoothly
+        // RecreateDevice() (ALManagerDevice.cs) only falls back to this when ALDevice.Reopen
+        // (ALC_SOFT_reopen_device) isn't available on the current device.
         DestroyAll();
     }
 }
