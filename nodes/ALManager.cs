@@ -4,6 +4,38 @@ namespace godot_mono_openal;
 public unsafe partial class ALManager : Node
 {
     public static ALManager instance;
+
+    // Lazily creates the singleton on first access, rather than relying on plugin.gd's
+    // _add_singleton() to have already added one - EditorPlugin/tree timing during startup isn't
+    // reliable enough to guarantee that's happened by the time game code (e.g. a VAWorld node)
+    // checks GodotOpenALEnabled from its own _EnterTree().
+    //
+    // Initialisation happens directly here (setting `instance`, CreateDeviceAndContext) rather
+    // than deferring to _EnterTree - AddChild() does NOT call _EnterTree() synchronously when
+    // called reentrantly from within the scene tree's own tree-enter pass (which is exactly the
+    // case here, since this is normally reached from another node's _EnterTree()); Godot queues
+    // the notification instead, so waiting on it would leave `instance` null and cause infinite
+    // recreation. _EnterTree() below is now just a safety net for the ALManager plugin.gd adds
+    // eagerly in the editor.
+    //
+    // Never lazily creates one in the editor - editor code should only ever see an instance if
+    // plugin.gd's own _add_singleton() created one for editor-side tooling (device list, etc).
+    public static ALManager Instance
+    {
+        get
+        {
+            if (instance == null && !Engine.IsEditorHint())
+            {
+                instance = new ALManager { Name = nameof(ALManager) };
+                ((SceneTree)Engine.GetMainLoop()).Root.AddChild(instance);
+
+                instance.CreateDeviceAndContext();
+            }
+
+            return instance;
+        }
+    }
+
     public bool Initialised => ALDevice != null;
 
     public override void _EnterTree()
@@ -27,7 +59,11 @@ public unsafe partial class ALManager : Node
         if (Engine.IsEditorHint())
             return;
 
-        if (instance != null && instance != this)
+        // Already fully set up via Instance (the common path at game runtime) - nothing to do.
+        if (instance == this)
+            return;
+
+        if (instance != null)
         {
             LogWarning($"The ALManager node is already initialised. You can only have one ALManager node");
             QueueFree();
@@ -49,9 +85,6 @@ public unsafe partial class ALManager : Node
 
         ALContext.Process();
         DisposeFinishedSources();
-
-        if (MicrophoneEnabled)
-            ALCaptureDevice?.Update();
     }
 
     public override void _ExitTree()
@@ -71,12 +104,7 @@ public unsafe partial class ALManager : Node
     ALDistanceModel _distanceModel = ALDistanceModel.InverseDistance;
     float _metersPerUnit = 1;
     float _speedOfSound = 343;
-    int _maximumMonoSources = 16;
-    int _maximumStereoSources = 240;
     int _outputDeviceIndex;
-    int _inputDeviceIndex;
-    bool _microphoneEnabled;
-    int _microphoneThreshold;
     Vector3 _listenerPosition;
     Vector3 _listenerVelocity;
     float _listenerPitch;
@@ -141,108 +169,17 @@ public unsafe partial class ALManager : Node
         set => UpdateProperty(ref _reverbOnly, value, SetReverbOnly);
     }
 
-    [Export]
-    public int MaximumMonoSources
-    {
-        get => _maximumMonoSources;
-        set => UpdateProperty(ref _maximumMonoSources, Math.Max(0, value), (v) => CantChangeAtRuntime("MaximumMonoSources", _maximumMonoSources, v));
-    }
-
-    [Export]
-    public int MaximumStereoSources
-    {
-        get => _maximumStereoSources;
-        set => UpdateProperty(ref _maximumStereoSources, Math.Max(0, value), (v) => CantChangeAtRuntime("MaximumStereoSources", _maximumStereoSources, v));
-    }
-
-    // MaximumAuxiliarySends, SampleRate and HRTFEnabled are read once from Project Settings
-    // (audio/vaudio/*) during CreateDeviceAndContext() - see ALManagerDevice.cs - matching
-    // native's read_settings_from_project_settings(); they're not settable at runtime there
-    // either, since ALManager's only bound device-switching method (set_output_device) reuses
-    // whatever these were at initialize() time.
-
-    [Export]
-    public bool MicrophoneEnabled
-    {
-        get => _microphoneEnabled;
-        set => UpdateProperty(ref _microphoneEnabled, value, SetMicrophoneEnabled);
-    }
-
-    [Export]
-    public int MicrophoneThreshold
-    {
-        get => _microphoneThreshold;
-        set => UpdateProperty(ref _microphoneThreshold, Math.Max(0, value));
-    }
+    // MaximumAuxiliarySends, SampleRate, HRTFEnabled, MaximumMonoSources and MaximumStereoSources
+    // are read once from Project Settings (audio/vaudio/*) during CreateDeviceAndContext() - see
+    // ALManagerDevice.cs - matching native's read_settings_from_project_settings(); they're not
+    // settable at runtime there either, since ALManager's only bound device-switching method
+    // (set_output_device) reuses whatever these were at initialize() time.
 
     // Read once from Project Settings (audio/vaudio/output_device) during
     // CreateDeviceAndContext() - see ALManagerDevice.cs - no longer an inspector-editable
     // property, matching native's output device now only being configurable via Project
     // Settings (or ALManager.SetOutputDevice at runtime).
     string _outputDeviceName;
-
-    string _inputDeviceName;
-
-    string InputDeviceName
-    {
-        get
-        {
-            return _inputDeviceName;
-        }
-        set
-        {
-            _inputDeviceName = value;
-
-            if (ALCaptureDevice != null)
-                RecreateCaptureDevice();
-        }
-    }
-
-    public override Godot.Collections.Array<Godot.Collections.Dictionary> _GetPropertyList()
-    {
-        var properties = new Godot.Collections.Array<Godot.Collections.Dictionary>();
-
-        if (InputDeviceList.Count == 0)
-            RefreshDeviceLists();
-
-        properties.Add(new Godot.Collections.Dictionary
-        {
-            { "name", "InputDeviceName" },
-            { "type", (int)Variant.Type.String },
-            { "usage", (int)(PropertyUsageFlags.Default) },
-            { "hint", (int)PropertyHint.Enum },
-            { "hint_string", InputDeviceList.Count > 0 ? string.Join(",", InputDeviceList) : "" }
-        });
-
-        return properties;
-    }
-
-    public override Variant _Get(StringName property)
-    {
-        if (property == "InputDeviceName")
-        {
-            var value = _inputDeviceName ?? "";
-            return value;
-        }
-
-        return default;
-    }
-
-    public override bool _Set(StringName property, Variant value)
-    {
-        if (property == "InputDeviceName")
-        {
-            _inputDeviceName = value.AsString();
-            RecreateCaptureDevice();
-            return true;
-        }
-
-        return false;
-    }
-
-    // samples is a short*, i.e. 2 bytes per sample
-    public delegate void MicrophoneDataCallback(IntPtr samples, int sampleCount);
-    public event MicrophoneDataCallback OnMicrophoneData;
 
     static void UpdateProperty<T>(ref T field, T value, Action<T> updateAction = null) where T : struct
     {
@@ -253,9 +190,4 @@ public unsafe partial class ALManager : Node
         }
     }
 
-    void CantChangeAtRuntime<T>(string property, T currentValue, T newValue)
-    {
-        if (Initialised)
-            LogWarning($"The {property} property cannot be changed at runtime - please restart for changes to take effect. Current value: {currentValue}, new value: {newValue}");
-    }
 }

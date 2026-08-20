@@ -184,18 +184,54 @@ func _register_project_settings():
 
 	ProjectSettings.set_initial_value("audio/vaudio/hrtf_enabled", true)
 
+	# max_mono_sources/max_stereo_sources: project-level settings set by the developer, matching
+	# the native Godot plugin's register_types.cpp - read once at device-open time, can't be
+	# changed at runtime.
+	if not ProjectSettings.has_setting("audio/vaudio/max_mono_sources"):
+		ProjectSettings.set_setting("audio/vaudio/max_mono_sources", 16)
+
+	ProjectSettings.set_initial_value("audio/vaudio/max_mono_sources", 16)
+
+	ProjectSettings.add_property_info({
+		"name": "audio/vaudio/max_mono_sources",
+		"type": TYPE_INT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0,256,or_greater",
+	})
+
+	if not ProjectSettings.has_setting("audio/vaudio/max_stereo_sources"):
+		ProjectSettings.set_setting("audio/vaudio/max_stereo_sources", 240)
+
+	ProjectSettings.set_initial_value("audio/vaudio/max_stereo_sources", 240)
+
+	ProjectSettings.add_property_info({
+		"name": "audio/vaudio/max_stereo_sources",
+		"type": TYPE_INT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0,256,or_greater",
+	})
+
 func _add_singleton():
 	# Check if the singleton is already registered (e.g. plugin reload)
 	if Engine.has_singleton(SINGLETON_NAME):
 		return
 
-	# ALManager still needs a per-frame tick for ALContext.Process()/DisposeFinishedSources()/
-	# capture device updates - it gets one by being added as a direct child of the root viewport
-	# (not a scene autoload, so it survives scene changes without appearing in any scene's tree
-	# or requiring a .tscn file), which still drives its _Process override normally.
+	# ALManager still needs a per-frame tick for ALContext.Process()/DisposeFinishedSources() - it
+	# gets one by being added as a direct child of the root viewport (not a scene autoload, so it
+	# survives scene changes without appearing in any scene's tree or requiring a .tscn file),
+	# which still drives its _Process override normally.
+	#
+	# This eagerly creates the editor-side instance (used for editor tooling, e.g. the output
+	# device dropdown in the Inspector via RefreshDeviceLists).
+	# CreateDeviceAndContext() itself is skipped here since Engine.IsEditorHint() is true.
+	#
+	# At game runtime, EditorPlugin/tree timing during startup isn't reliable enough to guarantee
+	# this has already run by the time a game scene's own nodes (e.g. VAWorld) run _EnterTree()
+	# and check GodotOpenALEnabled - so ALManager.Instance (nodes/ALManager.cs) lazily creates its
+	# own instance on first access instead of depending on this method having already run.
 	_al_manager = preload("nodes/ALManager.cs").new()
 	_al_manager.name = SINGLETON_NAME
-	get_tree().root.add_child.call_deferred(_al_manager)
+	get_tree().root.add_child(_al_manager)
 
 	Engine.register_singleton(SINGLETON_NAME, _al_manager)
 	print("[godot-mono-openal] Registered ALManager singleton")

@@ -7,11 +7,9 @@ public unsafe partial class ALManager
     // AL resources
     ALDevice ALDevice;
     ALContext ALContext;
-    ALCaptureDevice ALCaptureDevice;
 
     // Device cache
     List<string> OutputDeviceList = [];
-    List<string> InputDeviceList = [];
 
     // Intermediate listener data
     public Vector3 listenerPosition;

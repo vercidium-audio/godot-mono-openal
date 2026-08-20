@@ -40,14 +40,6 @@ public unsafe partial class ALManager
         RecreateDevice();
     }
 
-    void SetMicrophoneEnabled(bool enabled)
-    {
-        if (enabled)
-            InitialiseCaptureDevice();
-        else
-            CloseCaptureDevice();
-    }
-
     public void UpdateListener(Vector3 position, float pitch, float yaw)
     {
         var cameraVel = Vector3.Zero;

@@ -29,10 +29,6 @@ public unsafe partial class ALManager
         foreach (var callback in OnDeviceDestroyedCallbacks)
             callback.Invoke();
 
-        // Delete microphone device
-        CloseCaptureDevice();
-        ALCaptureDevice = null;
-
         // Delete context
         AL.MakeContextCurrent(IntPtr.Zero);
         ALContext.Destroy();

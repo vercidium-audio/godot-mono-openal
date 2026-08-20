@@ -11,11 +11,14 @@ public unsafe partial class ALManager
     int _maximumAuxiliarySends;
     int _sampleRate;
     bool _hrtfEnabled;
+    int _maximumMonoSources;
+    int _maximumStereoSources;
 
-    // Reads audio/vaudio/output_device, audio/vaudio/max_reverb_sends, audio/vaudio/sample_rate
-    // and audio/vaudio/hrtf_enabled once - matches native's read_settings_from_project_settings()
-    // in al_manager.cpp. plugin.gd's _register_project_settings() registers these (with defaults)
-    // before the singleton is created, so every setting already exists here.
+    // Reads audio/vaudio/output_device, audio/vaudio/max_reverb_sends, audio/vaudio/sample_rate,
+    // audio/vaudio/hrtf_enabled, audio/vaudio/max_mono_sources and audio/vaudio/max_stereo_sources
+    // once - matches native's read_settings_from_project_settings() in al_manager.cpp. plugin.gd's
+    // _register_project_settings() registers these (with defaults) before the singleton is
+    // created, so every setting already exists here.
     void ReadSettingsFromProjectSettings()
     {
         var deviceNameSetting = ProjectSettings.GetSetting("audio/vaudio/output_device").AsString();
@@ -24,6 +27,8 @@ public unsafe partial class ALManager
         _maximumAuxiliarySends = ProjectSettings.GetSetting("audio/vaudio/max_reverb_sends").AsInt32();
         _sampleRate = ProjectSettings.GetSetting("audio/vaudio/sample_rate").AsInt32();
         _hrtfEnabled = ProjectSettings.GetSetting("audio/vaudio/hrtf_enabled").AsBool();
+        _maximumMonoSources = ProjectSettings.GetSetting("audio/vaudio/max_mono_sources").AsInt32();
+        _maximumStereoSources = ProjectSettings.GetSetting("audio/vaudio/max_stereo_sources").AsInt32();
     }
 
     void CreateDeviceAndContext()
@@ -50,8 +55,8 @@ public unsafe partial class ALManager
             HRTFID = 0,
             SampleRate = _sampleRate,
             MaximumAuxiliarySends = _maximumAuxiliarySends,
-            MaximumMonoSources = MaximumMonoSources,
-            MaximumStereoSources = MaximumStereoSources,
+            MaximumMonoSources = _maximumMonoSources,
+            MaximumStereoSources = _maximumStereoSources,
             LogFunction = GD.PushWarning,
         };
 
@@ -63,11 +68,6 @@ public unsafe partial class ALManager
         SetSpeedOfSound(SpeedOfSound);
         SetListenerGain(MasterVolume);
         SetDistanceModel(DistanceModel);
-
-
-        // Create an OpenAL capture device
-        if (MicrophoneEnabled)
-            InitialiseCaptureDevice();
     }
 
     void RecreateDevice()
@@ -92,8 +92,8 @@ public unsafe partial class ALManager
             HRTFID = 0,
             SampleRate = _sampleRate,
             MaximumAuxiliarySends = _maximumAuxiliarySends,
-            MaximumMonoSources = MaximumMonoSources,
-            MaximumStereoSources = MaximumStereoSources,
+            MaximumMonoSources = _maximumMonoSources,
+            MaximumStereoSources = _maximumStereoSources,
         });
 
         if (ALDevice.Reopen(string.IsNullOrEmpty(_outputDeviceName) ? null : _outputDeviceName, attribs))
@@ -109,27 +109,6 @@ public unsafe partial class ALManager
 
     void RefreshDeviceLists()
     {
-        InputDeviceList = AL.GetStringList(IntPtr.Zero, AL.ALC_CAPTURE_DEVICE_SPECIFIER);
-
-        if (InputDeviceList.Count == 0)
-        {
-            InputDeviceName = "";
-        }
-        else
-        {
-            // Auto-select for the first time
-            if (string.IsNullOrEmpty(InputDeviceName))
-            {
-                InputDeviceName = InputDeviceList[0];
-            }
-            // Handle disconnect - switch to a different device
-            else if (!InputDeviceList.Contains(InputDeviceName))
-            {
-                LogWarning($"Input device '{InputDeviceName}' disconnected. Switching to '{InputDeviceList[0]}'");
-                InputDeviceName = InputDeviceList[0];
-            }
-        }
-
         OutputDeviceList = AL.GetStringList(IntPtr.Zero, AL.ALC_ALL_DEVICES_SPECIFIER);
 
         // Rebuild audio/vaudio/output_device's PROPERTY_HINT_ENUM hint_string now that the real
