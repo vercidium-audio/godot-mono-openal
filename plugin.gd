@@ -12,23 +12,13 @@ const PROPERTY_GROUP = """	<PropertyGroup>
 const DLL_SOURCE_WINDOWS = "addons/godot-mono-openal/soft_oal.dll"
 const DLL_SOURCE_LINUX = "addons/godot-mono-openal/libopenal.so.1"
 
-const SINGLETON_NAME = "ALManager"
+const ALManagerScript = preload("nodes/ALManager.cs")
 
-# "audio/vaudio/*" Project Settings - kept identical to the native Godot plugin's
-# audio/vaudio/output_device, audio/vaudio/max_reverb_sends, audio/vaudio/sample_rate and
-# audio/vaudio/hrtf_enabled keys (see register_project_settings() in that repo's
-# src/register_types.cpp), so a project can switch between the native and Mono plugins without
-# reconfiguring anything. DEFAULT_DEVICE_LABEL matches va_device_name.h - stored/shown as this
-# label rather than "", since a strict PROPERTY_HINT_ENUM dropdown must always show the current
-# value as one of its own entries. ALManager.cs translates it back to "" (driver default) when
-# reading the setting.
+# "audio/vaudio/*" Project Settings
 const DEFAULT_DEVICE_LABEL = "System Default"
-
-var _al_manager: Node
 
 func _enter_tree():
 	add_custom_type("ALSource3D", "Node3D", preload("nodes/ALSource3D.cs"), null)
-	add_custom_type("ALManager", "Node", preload("nodes/ALManager.cs"), null)
 
 	# Connect to project settings to detect solution generation
 	if not ProjectSettings.settings_changed.is_connected(_on_settings_changed):
@@ -37,20 +27,14 @@ func _enter_tree():
 	# Run setup immediately in case solution already exists
 	_setup_project()
 
-	# Register audio/vaudio/* Project Settings before the singleton reads them
+	# Register audio/vaudio/* Project Settings
 	_register_project_settings()
-
-	# Register the ALManager Engine singleton
-	_add_singleton()
+	ALManagerScript.call("RefreshDeviceLists")
 
 	print("[godot-mono-openal] Plugin setup complete")
 
 func _exit_tree():
 	remove_custom_type("ALSource3D")
-	remove_custom_type("ALManager")
-
-	# Remove the ALManager Engine singleton
-	_remove_singleton()
 
 	if ProjectSettings.settings_changed.is_connected(_on_settings_changed):
 		ProjectSettings.settings_changed.disconnect(_on_settings_changed)
@@ -162,7 +146,7 @@ func _register_project_settings():
 		"name": "audio/vaudio/max_reverb_sends",
 		"type": TYPE_INT,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "0,16,or_greater",
+		"hint_string": "1,16,or_greater",
 	})
 
 	# sample_rate: 0 means "driver default" - never shown to the user as 0.
@@ -210,38 +194,3 @@ func _register_project_settings():
 		"hint": PROPERTY_HINT_RANGE,
 		"hint_string": "0,256,or_greater",
 	})
-
-func _add_singleton():
-	# Check if the singleton is already registered (e.g. plugin reload)
-	if Engine.has_singleton(SINGLETON_NAME):
-		return
-
-	# ALManager still needs a per-frame tick for ALContext.Process()/DisposeFinishedSources() - it
-	# gets one by being added as a direct child of the root viewport (not a scene autoload, so it
-	# survives scene changes without appearing in any scene's tree or requiring a .tscn file),
-	# which still drives its _Process override normally.
-	#
-	# This eagerly creates the editor-side instance (used for editor tooling, e.g. the output
-	# device dropdown in the Inspector via RefreshDeviceLists).
-	# CreateDeviceAndContext() itself is skipped here since Engine.IsEditorHint() is true.
-	#
-	# At game runtime, EditorPlugin/tree timing during startup isn't reliable enough to guarantee
-	# this has already run by the time a game scene's own nodes (e.g. VAWorld) run _EnterTree()
-	# and check GodotOpenALEnabled - so ALManager.Instance (nodes/ALManager.cs) lazily creates its
-	# own instance on first access instead of depending on this method having already run.
-	_al_manager = preload("nodes/ALManager.cs").new()
-	_al_manager.name = SINGLETON_NAME
-	get_tree().root.add_child(_al_manager)
-
-	Engine.register_singleton(SINGLETON_NAME, _al_manager)
-	print("[godot-mono-openal] Registered ALManager singleton")
-
-func _remove_singleton():
-	if Engine.has_singleton(SINGLETON_NAME):
-		Engine.unregister_singleton(SINGLETON_NAME)
-
-	if is_instance_valid(_al_manager):
-		_al_manager.queue_free()
-	_al_manager = null
-
-	print("[godot-mono-openal] Removed ALManager singleton")

@@ -1,8 +1,8 @@
 namespace godot_mono_openal;
 
-public unsafe partial class ALManager
+public static unsafe partial class ALManager
 {
-    void DestroyAllAudioSources(Node root)
+    static void DestroyAllAudioSources(Node root)
     {
         foreach (var child in root.GetChildren())
         {
@@ -13,7 +13,7 @@ public unsafe partial class ALManager
         }
     }
 
-    public void DestroyAll()
+    public static void DestroyAll()
     {
         // Sanity check
         if (ALDevice == null || ALContext == null)
@@ -22,8 +22,9 @@ public unsafe partial class ALManager
             return;
         }
 
-        // Delete sources before effects
-        DestroyAllAudioSources(GetTree().Root);
+        // Delete sources before effects - no Node.GetTree() to reach the scene tree from a static
+        // class, so go via the main loop directly (same pattern Ensure() uses).
+        DestroyAllAudioSources(((SceneTree)Engine.GetMainLoop()).Root);
 
         // Invoke device destroyed callbacks (e.g. for cleaning up reverb effects)
         foreach (var callback in OnDeviceDestroyedCallbacks)
@@ -39,7 +40,7 @@ public unsafe partial class ALManager
         ALDevice = null;
     }
 
-    public void CancelLoadingAndDestroy()
+    public static void CancelLoadingAndDestroy()
     {
         // Tell the background sound-loading threads to stop loading
         ALBuffer.CancelLoadingSounds = true;

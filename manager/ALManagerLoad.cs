@@ -1,13 +1,13 @@
 namespace godot_mono_openal;
 
-public unsafe partial class ALManager
+public static unsafe partial class ALManager
 {
     // One ALBuffer per unique AudioStream resource, decoded on first use and reused by every
     // ALSource3D that references the same stream. Keyed by the AudioStream instance rather than
     // a file path since a stream can be created at runtime without a resource_path.
-    Dictionary<AudioStream, ALBuffer> DecodedStreams = [];
+    static Dictionary<AudioStream, ALBuffer> DecodedStreams = [];
 
-    public ALBuffer GetOrCreateBuffer(AudioStream stream)
+    public static ALBuffer GetOrCreateBuffer(AudioStream stream)
     {
         if (DecodedStreams.TryGetValue(stream, out var buffer))
             return buffer;

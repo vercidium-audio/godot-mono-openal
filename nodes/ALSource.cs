@@ -28,7 +28,7 @@ public partial class ALSource : Node3D
         //  then reduce the reverb effect's gain to make it muffled
         var reverbFilter = fullReverb ? fullFilter : filter;
 
-        var directFilter = ALManager.instance.ReverbOnly ? silenceFilter : filter;
+        var directFilter = ALManager.ReverbOnly ? silenceFilter : filter;
 
         foreach (var s in sources)
             s.SetFilter(effect, directFilter, reverbFilter);
@@ -88,7 +88,7 @@ public partial class ALSource : Node3D
             return false;
         }
 
-        if (!ALManager.instance.TryCreateSource(_streams[streamIndex], true, out var source))
+        if (!ALManager.TryCreateSource(_streams[streamIndex], true, out var source))
             return false;
 
         lastPlayedStreamIndex = streamIndex;
@@ -106,7 +106,7 @@ public partial class ALSource : Node3D
         source.SetLooping(Looping);
         ConfigureSource(source);
 
-        var directFilter = ALManager.instance.ReverbOnly ? silenceFilter : filter;
+        var directFilter = ALManager.ReverbOnly ? silenceFilter : filter;
 
         // For reverb in other rooms, we send the sound's clear audio to the reverb effect,
         //  then reduce the reverb effect's gain to make it muffled

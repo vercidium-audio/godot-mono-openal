@@ -1,11 +1,11 @@
 namespace godot_mono_openal;
 
-public unsafe partial class ALManager
+public static unsafe partial class ALManager
 {
-    public void SetListenerPosition(Vector3 position) => AL.Listenerfv(AL.AL_POSITION, [position.X, position.Y, position.Z]);
-    public void SetListenerVelocity(Vector3 velocity) => AL.Listenerfv(AL.AL_VELOCITY, [velocity.X, velocity.Y, velocity.Z]);
+    public static void SetListenerPosition(Vector3 position) => AL.Listenerfv(AL.AL_POSITION, [position.X, position.Y, position.Z]);
+    public static void SetListenerVelocity(Vector3 velocity) => AL.Listenerfv(AL.AL_VELOCITY, [velocity.X, velocity.Y, velocity.Z]);
 
-    public void SetListenerPitch(float pitch)
+    public static void SetListenerPitch(float pitch)
     {
         var orientation = Helper.PitchYawToVector3(pitch, _listenerYaw);
         var up = Helper.PitchYawToVector3(pitch + MathF.PI / 2, _listenerYaw);
@@ -14,7 +14,7 @@ public unsafe partial class ALManager
 
         _listenerPitch = pitch;
     }
-    public void SetListenerYaw(float yaw)
+    public static void SetListenerYaw(float yaw)
     {
         var orientation = Helper.PitchYawToVector3(_listenerPitch, yaw);
         var up = Helper.PitchYawToVector3(_listenerPitch + MathF.PI / 2, yaw);
@@ -24,23 +24,23 @@ public unsafe partial class ALManager
         _listenerYaw = yaw;
     }
 
-    public void SetListenerGain(float gain) => AL.Listenerf(AL.AL_GAIN, gain);
-    public void SetDistanceModel(ALDistanceModel model) => AL.DistanceModel((int)model);
-    public void SetMetersPerUnit(float metersPerUnit) => AL.Listenerf(AL.AL_METERS_PER_UNIT, metersPerUnit);
-    public void SetSpeedOfSound(float speedOfSound) => AL.SpeedOfSound(speedOfSound);
-    public void SetReverbOnly(bool value) => _reverbOnly = value;
+    public static void SetListenerGain(float gain) => AL.Listenerf(AL.AL_GAIN, gain);
+    public static void SetDistanceModel(ALDistanceModel model) => AL.DistanceModel((int)model);
+    public static void SetMetersPerUnit(float metersPerUnit) => AL.Listenerf(AL.AL_METERS_PER_UNIT, metersPerUnit);
+    public static void SetSpeedOfSound(float speedOfSound) => AL.SpeedOfSound(speedOfSound);
+    public static void SetReverbOnly(bool value) => _reverbOnly = value;
 
     // Runtime device switching, reusing whichever max_reverb_sends/sample_rate/hrtf_enabled were
     // read from Project Settings at initialize() time - matches native's bound
     // ALManager::set_output_device(), the only one of the four audio/vaudio/* settings it exposes
     // for runtime changes.
-    public void SetOutputDevice(string deviceName)
+    public static void SetOutputDevice(string deviceName)
     {
         _outputDeviceName = deviceName;
         RecreateDevice();
     }
 
-    public void UpdateListener(Vector3 position, float pitch, float yaw)
+    public static void UpdateListener(Vector3 position, float pitch, float yaw)
     {
         var cameraVel = Vector3.Zero;
         var orientation = Helper.PitchYawToVector3(pitch, yaw);
@@ -53,7 +53,7 @@ public unsafe partial class ALManager
         AL.Listenerfv(AL.AL_ORIENTATION, [orientation.X, orientation.Y, orientation.Z, up.X, up.Y, up.Z]);
     }
 
-    void DisposeFinishedSources()
+    static void DisposeFinishedSources()
     {
         for (int i = ActiveSources.Count - 1; i >= 0; i--)
         {

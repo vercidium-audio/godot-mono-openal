@@ -2,35 +2,35 @@ using OpenALSource = global::OpenAL.managed.ALSource;
 
 namespace godot_mono_openal;
 
-public unsafe partial class ALManager
+public static unsafe partial class ALManager
 {
     // AL resources
-    ALDevice ALDevice;
-    ALContext ALContext;
+    static ALDevice ALDevice;
+    static ALContext ALContext;
 
     // Device cache
-    List<string> OutputDeviceList = [];
+    static List<string> OutputDeviceList = [];
 
     // Intermediate listener data
-    public Vector3 listenerPosition;
-    public Vector3 listenerVelocity;
-    public Vector3 listenerOrientation;
-    public Vector3 listenerUp;
+    public static Vector3 listenerPosition;
+    public static Vector3 listenerVelocity;
+    public static Vector3 listenerOrientation;
+    public static Vector3 listenerUp;
 
     // Keep track of all currently playing sources, so we can destroy them when they've finished playing
-    List<OpenALSource> ActiveSources = [];
+    static List<OpenALSource> ActiveSources = [];
 
     // Callbacks for when the device is destroyed (e.g. when switching audio devices)
-    HashSet<Action> OnDeviceDestroyedCallbacks = [];
+    static HashSet<Action> OnDeviceDestroyedCallbacks = [];
 
     // Callbacks for when the device is recreated (e.g. after switching audio devices)
-    HashSet<Action> OnDeviceRecreatedCallbacks = [];
+    static HashSet<Action> OnDeviceRecreatedCallbacks = [];
 
     /// <summary>
     /// Register a callback to be invoked when the OpenAL device is destroyed.
     /// Use this to clean up any OpenAL resources (filters, effects, etc.)
     /// </summary>
-    public void RegisterDeviceDestroyedCallback(Action callback)
+    public static void RegisterDeviceDestroyedCallback(Action callback)
     {
         if (callback == null)
             throw new ArgumentException("callback cannot be null");
@@ -41,7 +41,7 @@ public unsafe partial class ALManager
     /// <summary>
     /// Unregister a previously registered device destroyed callback.
     /// </summary>
-    public void UnregisterDeviceDestroyedCallback(Action callback)
+    public static void UnregisterDeviceDestroyedCallback(Action callback)
     {
         if (callback == null)
             throw new ArgumentException("callback cannot be null");
@@ -53,7 +53,7 @@ public unsafe partial class ALManager
     /// Register a callback to be invoked when the OpenAL device is recreated.
     /// Use this to recreate any OpenAL resources (filters, effects, etc.) after the device is ready.
     /// </summary>
-    public void RegisterDeviceRecreatedCallback(Action callback)
+    public static void RegisterDeviceRecreatedCallback(Action callback)
     {
         if (callback == null)
             throw new ArgumentException("callback cannot be null");
@@ -64,7 +64,7 @@ public unsafe partial class ALManager
     /// <summary>
     /// Unregister a previously registered device recreated callback.
     /// </summary>
-    public void UnregisterDeviceRecreatedCallback(Action callback)
+    public static void UnregisterDeviceRecreatedCallback(Action callback)
     {
         if (callback == null)
             throw new ArgumentException("callback cannot be null");

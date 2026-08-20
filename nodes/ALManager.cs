@@ -1,45 +1,20 @@
 namespace godot_mono_openal;
 
-[Tool]
-public unsafe partial class ALManager : Node
+public static unsafe partial class ALManager
 {
-    public static ALManager instance;
+    public static bool Initialised => ALDevice != null;
 
-    // Lazily creates the singleton on first access, rather than relying on plugin.gd's
-    // _add_singleton() to have already added one - EditorPlugin/tree timing during startup isn't
-    // reliable enough to guarantee that's happened by the time game code (e.g. a VAWorld node)
-    // checks GodotOpenALEnabled from its own _EnterTree().
-    //
-    // Initialisation happens directly here (setting `instance`, CreateDeviceAndContext) rather
-    // than deferring to _EnterTree - AddChild() does NOT call _EnterTree() synchronously when
-    // called reentrantly from within the scene tree's own tree-enter pass (which is exactly the
-    // case here, since this is normally reached from another node's _EnterTree()); Godot queues
-    // the notification instead, so waiting on it would leave `instance` null and cause infinite
-    // recreation. _EnterTree() below is now just a safety net for the ALManager plugin.gd adds
-    // eagerly in the editor.
-    //
-    // Never lazily creates one in the editor - editor code should only ever see an instance if
-    // plugin.gd's own _add_singleton() created one for editor-side tooling (device list, etc).
-    public static ALManager Instance
+    // Lazily creates the OpenAL device/context on first access - a plain static class has no
+    // scene-tree lifecycle to race against, so this can safely be called from anywhere, including
+    // from inside another node's _EnterTree() (which is exactly how GodotOpenALEnabled/
+    // ALManager.Ensure() is used - see Extensions.cs in vaudio-godot-mono-openal-3d). Never
+    // initialises in the editor - CreateDeviceAndContext() opens a real OpenAL device, which
+    // should only happen at game runtime.
+    public static void Ensure()
     {
-        get
-        {
-            if (instance == null && !Engine.IsEditorHint())
-            {
-                instance = new ALManager { Name = nameof(ALManager) };
-                ((SceneTree)Engine.GetMainLoop()).Root.AddChild(instance);
+        if (Initialised || Engine.IsEditorHint())
+            return;
 
-                instance.CreateDeviceAndContext();
-            }
-
-            return instance;
-        }
-    }
-
-    public bool Initialised => ALDevice != null;
-
-    public override void _EnterTree()
-    {
         // Log to both - in case we're launched from vs2026 or from the Godot Editor
         OpenAL.Logger.Log = (message) =>
         {
@@ -52,118 +27,84 @@ public unsafe partial class ALManager : Node
             GD.PushError(message);
         };
 
-        // Ensure lists are up to date
-        RefreshDeviceLists();
-        NotifyPropertyListChanged();
-
-        if (Engine.IsEditorHint())
-            return;
-
-        // Already fully set up via Instance (the common path at game runtime) - nothing to do.
-        if (instance == this)
-            return;
-
-        if (instance != null)
-        {
-            LogWarning($"The ALManager node is already initialised. You can only have one ALManager node");
-            QueueFree();
-            return;
-        }
-
-        instance = this;
-
-        if (!Initialised)
-        {
-            CreateDeviceAndContext();
-        }
+        CreateDeviceAndContext();
     }
 
-    public override void _Process(double delta)
+    // Called once per frame by VAWorld._Process (main/VAWorldGodot.cs) - matches how VAWorld
+    // already calls world.Update() for the raytracer every frame. No longer a Node._Process
+    // override, since ALManager is no longer a Node.
+    public static void Update()
     {
-        if (Engine.IsEditorHint())
+        if (Engine.IsEditorHint() || !Initialised)
             return;
 
         ALContext.Process();
         DisposeFinishedSources();
     }
 
-    public override void _ExitTree()
-    {
-        if (Initialised)
-        {
-            Debug.Assert(instance != null);
-            Debug.Assert(ALDevice != null);
-            Debug.Assert(ALContext != null);
-
-            CancelLoadingAndDestroy();
-            instance = null;
-        }
-    }
-
-    float _masterVolume = 1;
-    ALDistanceModel _distanceModel = ALDistanceModel.InverseDistance;
-    float _metersPerUnit = 1;
-    float _speedOfSound = 343;
-    int _outputDeviceIndex;
-    Vector3 _listenerPosition;
-    Vector3 _listenerVelocity;
-    float _listenerPitch;
-    float _listenerYaw;
-    bool _reverbOnly;
+    static float _masterVolume = 1;
+    static ALDistanceModel _distanceModel = ALDistanceModel.InverseDistance;
+    static float _metersPerUnit = 1;
+    static float _speedOfSound = 343;
+    static Vector3 _listenerPosition;
+    static Vector3 _listenerVelocity;
+    static float _listenerPitch;
+    static float _listenerYaw;
+    static bool _reverbOnly;
 
     // MasterVolume/DistanceModel/MetersPerUnit/SpeedOfSound/ReverbOnly/ListenerPosition/
     // ListenerVelocity/ListenerPitch/ListenerYaw are runtime-API-only (no inspector UI),
     // matching native's shape - call the Set* methods below directly from code.
 
-    public Vector3 ListenerPosition
+    public static Vector3 ListenerPosition
     {
         get => _listenerPosition;
         set => UpdateProperty(ref _listenerPosition, value, SetListenerPosition);
     }
 
-    public Vector3 ListenerVelocity
+    public static Vector3 ListenerVelocity
     {
         get => _listenerVelocity;
         set => UpdateProperty(ref _listenerVelocity, value, SetListenerVelocity);
     }
 
-    public float ListenerPitch
+    public static float ListenerPitch
     {
         get => _listenerPitch;
         set => UpdateProperty(ref _listenerPitch, value, SetListenerPitch);
     }
 
-    public float ListenerYaw
+    public static float ListenerYaw
     {
         get => _listenerYaw;
         set => UpdateProperty(ref _listenerYaw, value, SetListenerYaw);
     }
 
-    public float MasterVolume
+    public static float MasterVolume
     {
         get => _masterVolume;
         set => UpdateProperty(ref _masterVolume, MathF.Max(0, value), SetListenerGain);
     }
 
-    public ALDistanceModel DistanceModel
+    public static ALDistanceModel DistanceModel
     {
         get => _distanceModel;
         set => UpdateProperty(ref _distanceModel, value, SetDistanceModel);
     }
 
-    public float MetersPerUnit
+    public static float MetersPerUnit
     {
         get => _metersPerUnit;
         set => UpdateProperty(ref _metersPerUnit, MathF.Max(0, value), SetMetersPerUnit);
     }
 
-    public float SpeedOfSound
+    public static float SpeedOfSound
     {
         get => _speedOfSound;
         set => UpdateProperty(ref _speedOfSound, MathF.Max(0, value), SetSpeedOfSound);
     }
 
-    public bool ReverbOnly
+    public static bool ReverbOnly
     {
         get => _reverbOnly;
         set => UpdateProperty(ref _reverbOnly, value, SetReverbOnly);
@@ -179,7 +120,7 @@ public unsafe partial class ALManager : Node
     // CreateDeviceAndContext() - see ALManagerDevice.cs - no longer an inspector-editable
     // property, matching native's output device now only being configurable via Project
     // Settings (or ALManager.SetOutputDevice at runtime).
-    string _outputDeviceName;
+    static string _outputDeviceName;
 
     static void UpdateProperty<T>(ref T field, T value, Action<T> updateAction = null) where T : struct
     {
@@ -189,5 +130,4 @@ public unsafe partial class ALManager : Node
             updateAction?.Invoke(value);
         }
     }
-
 }
