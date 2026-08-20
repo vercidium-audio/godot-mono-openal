@@ -6,7 +6,7 @@ public unsafe partial class ALManager
     {
         foreach (var child in root.GetChildren())
         {
-            if (child is ALSource3D source)
+            if (child is ALSource source)
                 source.OnDeviceDestroyed();
 
             DestroyAllAudioSources(child);

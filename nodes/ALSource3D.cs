@@ -1,136 +1,48 @@
+using OpenALSource = global::OpenAL.managed.ALSource;
+
 namespace godot_mono_openal;
 
+// Spatialised AL source - see ALSource for the shared base (playback,
+// volume/pitch/streams) and ALSourceRelative for a non-spatialised source
+// pinned to the listener
 [Tool]
 [GlobalClass]
-public partial class ALSource3D : Node3D
+public partial class ALSource3D : ALSource
 {
-    protected List<ALSource> sources = [];
-    public ALFilter filter;
-    public ALReverbEffect effect;
+    float _maxDistance = 100;
+    float _referenceDistance = 8;
 
-    public static ALFilter silenceFilter = new(0, 0);
-    public static ALFilter fullFilter = new(1, 1);
-
-    public void UpdateFilter(float gain, float gainHF, bool fullReverb = false)
+    /// <summary>The max distance that the sound can be heard at. Also affected by the falloff model in <see cref="ALManager"/></summary>
+    [Export]
+    public float MaxDistance
     {
-        if (!GodotOpenALEnabled)
-            return;
-
-        if (filter == null)
-            filter = new(gain, gainHF);
-        else
-            filter.SetGain(gain, gainHF);
-
-
-        // For reverb in other rooms, we send the sound's clear audio to the reverb effect,
-        //  then reduce the reverb effect's gain to make it muffled
-        var reverbFilter = fullReverb ? fullFilter : filter;
-
-        var directFilter = ALManager.instance.ReverbOnly ? silenceFilter : filter;
-
-        foreach (var s in sources)
-            s.SetFilter(effect, directFilter, reverbFilter);
+        get => _maxDistance;
+        set => UpdateProperty(ref _maxDistance, MathF.Max(0, value), (v, source) => source.SetMaxDistance(v));
     }
 
-    bool streamsErrorLogged = false;
-    bool alWarningLogged = false;
-    int lastPlayedStreamIndex = -1;
-    static Random random = new();
-
-    int PickStreamIndex()
+    /// <summary>The distance that sound volume falloff starts at</summary>
+    [Export]
+    public float ReferenceDistance
     {
-        if (_streams.Length == 0)
-            return -1;
-
-        if (_streams.Length == 1)
-            return 0;
-
-        var index = random.Next(_streams.Length);
-
-        if (PlaybackNoRepeat && index == lastPlayedStreamIndex)
-            index = (index + 1) % _streams.Length;
-
-        return index;
+        get => _referenceDistance;
+        set => UpdateProperty(ref _referenceDistance, MathF.Max(0, value), (v, source) => source.SetReferenceDistance(v));
     }
 
-    public virtual bool Play()
+    protected override void ConfigureSource(OpenALSource source)
     {
-        var streamIndex = PickStreamIndex();
-
-        if (streamIndex < 0)
-        {
-            if (!streamsErrorLogged)
-            {
-                LogWarning($"Unable to play the ALSource3D {Name} because its Streams property is not set");
-                streamsErrorLogged = true;
-            }
-
-            return false;
-        }
-
-        if (!GodotOpenALEnabled)
-        {
-            if (!alWarningLogged)
-            {
-                LogWarning($"Unable to play the ALSource3D {Name} because the ALManager has not been initialised yet. Ensure the autoload is set up correctly.");
-                alWarningLogged = true;
-            }
-
-            return false;
-        }
-
-        if (!ALManager.instance.TryCreateSource(_streams[streamIndex], true, out var source))
-            return false;
-
-        lastPlayedStreamIndex = streamIndex;
-
-        // Set initial properties
-        source.SetRelative(Relative);
         source.SetMaxDistance(MaxDistance);
         source.SetReferenceDistance(ReferenceDistance);
-        source.SetGain(Volume);
-        source.SetPitch(Pitch);
-        source.SetLooping(Looping);
-
-
-        var directFilter = ALManager.instance.ReverbOnly ? silenceFilter : filter;
-
-        // For reverb in other rooms, we send the sound's clear audio to the reverb effect,
-        //  then reduce the reverb effect's gain to make it muffled
-        var fullReverb = true;
-        var reverbFilter = fullReverb ? fullFilter : filter;
-
-        source.SetFilter(effect, directFilter, reverbFilter);
-
-        source.Play();
-        sources.Add(source);
-        return true;
+        source.SetPosition(GlobalPosition);
     }
 
-    public void Stop()
+    public override void _Process(double delta)
     {
+        base._Process(delta);
+
+        if (Engine.IsEditorHint())
+            return;
+
         foreach (var s in sources)
-            s.Stop();
-    }
-
-    public bool IsPlaying()
-    {
-        foreach (var s in sources)
-            if (!s.Finished())
-                return false;
-
-        return true;
-    }
-
-    public virtual void OnDeviceDestroyed()
-    {
-        foreach (var s in sources)
-            s.Dispose();
-
-        sources.Clear();
-
-        // Must delete the filter after the sources
-        filter?.Delete();
-        filter = null;
+            s.SetPosition(GlobalPosition);
     }
 }

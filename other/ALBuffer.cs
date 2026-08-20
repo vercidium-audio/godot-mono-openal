@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
 
+using OpenALSource = global::OpenAL.managed.ALSource;
+
 namespace godot_mono_openal;
 
 public class ALBuffer
@@ -133,7 +135,7 @@ public class ALBuffer
         pcmData = null;
     }
 
-    public bool TryCreateSource(bool spatialised, out ALSource source)
+    public bool TryCreateSource(bool spatialised, out OpenALSource source)
     {
         // Bail if this buffer is still loading, or we failed to initialise OpenAL
         if (handle == 0)
@@ -153,7 +155,7 @@ public class ALBuffer
             return false;
         }
 
-        source = new ALSource(sourceID);
+        source = new OpenALSource(sourceID);
         source.SetBuffer(handle);
         source.SetRelative(!spatialised);
         source.SetSpatialise(spatialised);

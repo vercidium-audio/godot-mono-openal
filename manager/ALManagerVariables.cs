@@ -1,3 +1,5 @@
+using OpenALSource = global::OpenAL.managed.ALSource;
+
 namespace godot_mono_openal;
 
 public unsafe partial class ALManager
@@ -18,7 +20,7 @@ public unsafe partial class ALManager
     public Vector3 listenerUp;
 
     // Keep track of all currently playing sources, so we can destroy them when they've finished playing
-    List<ALSource> ActiveSources = [];
+    List<OpenALSource> ActiveSources = [];
 
     // Callbacks for when the device is destroyed (e.g. when switching audio devices)
     HashSet<Action> OnDeviceDestroyedCallbacks = [];
