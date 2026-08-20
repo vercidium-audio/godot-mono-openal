@@ -2,7 +2,7 @@
 extends EditorPlugin
 
 const PACKAGE_REFERENCES = """	<ItemGroup>
-		<PackageReference Include="openal_soft_bindings" Version="1.0.9" />
+		<PackageReference Include="openal_soft_bindings" Version="1.0.10" />
 	</ItemGroup>"""
 
 const PROPERTY_GROUP = """	<PropertyGroup>
