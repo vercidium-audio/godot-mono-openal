@@ -93,9 +93,16 @@ public partial class ALSource : Node3D
 
         lastPlayedStreamIndex = streamIndex;
 
+        // Matches AudioStreamRandomizer's random_pitch/random_volume_offset_db:
+        // PitchRandomness of 1.0 (no variation) and VolumeRandomnessDb of 0.0
+        // (no variation) both collapse the random range to the single input value.
+        var pitchLow = 1 / PitchRandomness;
+        var randomizedPitch = Pitch * (float)(pitchLow + random.NextDouble() * (PitchRandomness - pitchLow));
+        var randomizedGain = Volume * Mathf.DbToLinear((float)(-VolumeRandomnessDb + random.NextDouble() * (2 * VolumeRandomnessDb)));
+
         // Set initial properties
-        source.SetGain(Volume);
-        source.SetPitch(Pitch);
+        source.SetGain(randomizedGain);
+        source.SetPitch(randomizedPitch);
         source.SetLooping(Looping);
         ConfigureSource(source);
 

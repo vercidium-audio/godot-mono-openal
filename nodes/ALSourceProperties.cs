@@ -9,6 +9,9 @@ public partial class ALSource : Node3D
     bool _looping = false;
     AudioStream[] _streams = [];
     bool _playbackNoRepeat = true;
+    bool _autoplay = false;
+    float _pitchRandomness = 1;
+    float _volumeRandomnessDb = 0;
 
     protected void UpdateProperty<T>(ref T field, T value, Action<T, OpenALSource> updateAction) where T : struct
     {
@@ -64,6 +67,30 @@ public partial class ALSource : Node3D
     {
         get => _playbackNoRepeat;
         set => _playbackNoRepeat = value;
+    }
+
+    /// <summary>When true, this source starts playing automatically once it enters a live (non-editor) scene tree</summary>
+    [Export]
+    public bool Autoplay
+    {
+        get => _autoplay;
+        set => _autoplay = value;
+    }
+
+    /// <summary>Randomises each play's actual pitch within [Pitch / PitchRandomness, Pitch * PitchRandomness]. 1.0 disables variation, matching AudioStreamRandomizer's random_pitch</summary>
+    [Export(PropertyHint.Range, "1.0,4.0,0.01")]
+    public float PitchRandomness
+    {
+        get => _pitchRandomness;
+        set => _pitchRandomness = value;
+    }
+
+    /// <summary>Randomises each play's actual volume within +/- this many dB of Volume. 0.0 disables variation, matching AudioStreamRandomizer's random_volume_offset_db</summary>
+    [Export(PropertyHint.Range, "0.0,24.0,0.1")]
+    public float VolumeRandomnessDb
+    {
+        get => _volumeRandomnessDb;
+        set => _volumeRandomnessDb = value;
     }
 
     /// <summary>Script-only alias for <see cref="Streams"/>, matching AudioStreamPlayer3D's single "stream" property. Lets a script written against AudioStreamPlayer3D keep working unmodified after converting to this node. Reads back the first entry of <see cref="Streams"/>; writes replace <see cref="Streams"/> with a one-entry array.</summary>
